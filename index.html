@@ -1,0 +1,843 @@
+<title>Diagnóstico de equipo IENN</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&display=swap">
+<style>
+/* Diseño: una columna de lectura para responder y un panel más ancho para el propietario.
+   Cintas inclinadas y filetes dorados tomados de la infografía "El escudo de nuestro ADN". */
+:root{
+  --font-display:"Montserrat","Segoe UI",system-ui,sans-serif;
+  --font-body:"Nunito Sans","Segoe UI",system-ui,sans-serif;
+  --bg:#F5F8F5; --surface:#FFFFFF; --ink:#13213A; --muted:#566379; --line:#D5DFD8;
+  --tag-bg:#14224F; --tag-ink:#FFFFFF;
+  --fill:#0E5B49; --fill-ink:#FFFFFF; --soft:#E3EFE6;
+  --gold:#C99A2E; --gold-ink:#7C5A0E;
+  --bad:#B3261E;
+  --r1:#D3E8DC; --r2:#A4D0BC; --r3:#66B096; --r4:#2F8A70; --r5:#0E5B49;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1424; --surface:#151F36; --ink:#E7ECF4; --muted:#9BA8BE; --line:#27344E;
+    --tag-bg:#25397A; --tag-ink:#FFFFFF;
+    --fill:#4CC0A2; --fill-ink:#06231C; --soft:#1B2C3A;
+    --gold:#E0B04A; --gold-ink:#E8C06A;
+    --bad:#FF8F85;
+    --r1:#21443F; --r2:#2A6A5C; --r3:#34907A; --r4:#4CB597; --r5:#8EE3C8;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1424; --surface:#151F36; --ink:#E7ECF4; --muted:#9BA8BE; --line:#27344E;
+  --tag-bg:#25397A; --tag-ink:#FFFFFF;
+  --fill:#4CC0A2; --fill-ink:#06231C; --soft:#1B2C3A;
+  --gold:#E0B04A; --gold-ink:#E8C06A;
+  --bad:#FF8F85;
+  --r1:#21443F; --r2:#2A6A5C; --r3:#34907A; --r4:#4CB597; --r5:#8EE3C8;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);color:var(--ink);
+  font:400 16px/1.55 var(--font-body);
+  padding-block:0 56px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;line-height:1.15}
+p{margin:0}
+.wrap{max-width:720px;margin:0 auto;padding-top:28px}
+.wrap.wide{max-width:1040px}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* Encabezado */
+.kicker{font:700 12px var(--font-display);letter-spacing:.14em;text-transform:uppercase;color:var(--gold-ink)}
+h1{font-size:clamp(28px,6.2vw,44px);font-weight:800;margin-top:8px;letter-spacing:-.01em}
+.rule{height:3px;background:var(--gold);margin:0 0 22px}
+.lede{margin-top:16px;color:var(--ink);max-width:62ch}
+.lede + .lede{margin-top:8px}
+.req{margin-top:14px;font-size:14px;color:var(--muted)}
+
+/* Progreso */
+.progress{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:10px 0 8px;margin-top:22px;border-bottom:1px solid var(--line)}
+.progress .row{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--muted)}
+.bar{height:6px;background:var(--soft);margin-top:6px;border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--fill);transition:width .25s}
+
+/* Secciones y preguntas */
+.sec{margin:44px 0 2px}
+.sec-tag{
+  display:inline-block;
+  background:var(--tag-bg);color:var(--tag-ink);
+  font:800 15px var(--font-display);
+  padding:9px 34px 9px 18px;
+  clip-path:polygon(0 0,100% 0,calc(100% - 16px) 100%,0 100%);
+}
+.q{padding:22px 0;border-bottom:1px solid var(--line)}
+.qt{margin:0 0 14px;font-weight:600;display:block}
+.scale{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:var(--gap);max-width:calc(var(--n) * var(--w) + (var(--n) - 1) * var(--gap))}
+.ends{display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:13px;color:var(--muted);max-width:calc(var(--n) * var(--w) + (var(--n) - 1) * var(--gap))}
+.opt{position:relative;display:block;min-width:0}
+.opt input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.opt span{
+  display:grid;place-items:center;height:44px;
+  border:1.5px solid var(--line);border-radius:999px;background:var(--surface);
+  font:700 15px var(--font-display);color:var(--ink);transition:background .12s,border-color .12s,color .12s;
+}
+.opt:hover span{border-color:var(--fill)}
+.opt input:checked + span{background:var(--fill);border-color:var(--fill);color:var(--fill-ink)}
+.opt input:focus-visible + span{outline:3px solid var(--gold);outline-offset:2px}
+.q.missing{border-left:4px solid var(--bad);padding-left:14px;margin-left:-18px}
+.miss{color:var(--bad);font-size:14px;font-weight:700;margin-top:10px}
+.ta{width:100%;min-height:120px;padding:12px 14px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;resize:vertical}
+.opcional{font-weight:400;color:var(--muted);font-size:14px}
+.choices{display:flex;flex-wrap:wrap;gap:8px}
+.choice{position:relative;display:block}
+.choice input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.choice span{display:block;padding:11px 20px;border:1.5px solid var(--line);border-radius:999px;background:var(--surface);font:700 15px var(--font-display);color:var(--ink);transition:background .12s,border-color .12s,color .12s}
+.choice:hover span{border-color:var(--fill)}
+.choice input:checked + span{background:var(--fill);border-color:var(--fill);color:var(--fill-ink)}
+.choice input:focus-visible + span{outline:3px solid var(--gold);outline-offset:2px}
+.hint{margin:-6px 0 12px;font-size:13px;color:var(--muted)}
+.cmp{display:grid;grid-template-columns:minmax(0,1fr) 110px 110px 90px;gap:0 12px;margin-top:14px;max-width:760px}
+.cmp > *{padding:10px 0;border-top:1px solid var(--line)}
+.cmp .hd{font:700 11px var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-top:0;text-align:right}
+.cmp .hd:first-child{text-align:left}
+.cmp .num{font:800 18px var(--font-display);text-align:right;font-variant-numeric:tabular-nums}
+.cmp .diff{font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.cmp .diff.gap{color:var(--gold-ink)}
+
+/* Botones y avisos */
+.btn{appearance:none;border:0;background:var(--tag-bg);color:var(--tag-ink);font:700 15px var(--font-display);padding:14px 26px;border-radius:4px;cursor:pointer}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line);padding:9px 16px;font-size:13px}
+.btn.ghost:hover{border-color:var(--fill)}
+.send{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:30px}
+.status{font-size:14px;font-weight:700;color:var(--bad)}
+.thanks{padding:64px 0 0}
+.thanks svg{color:var(--fill)}
+.thanks h1{margin-top:16px}
+.linkbtn{appearance:none;background:none;border:0;padding:0;color:var(--ink);text-decoration:underline;font:inherit;cursor:pointer}
+.note{margin-top:16px;padding:10px 14px;border:1.5px solid var(--gold);font-size:14px}
+.sig{margin-top:64px;padding:12px 0;font-size:12px;color:var(--muted);user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+
+/* Panel */
+.dh{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:18px}
+.dh-side{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--soft);font-size:13px;font-weight:700;border-radius:999px}
+.live{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--muted)}
+.live::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--fill)}
+.live.on::before{animation:pulse 1.8s ease-out infinite}
+.live.off::before{background:var(--bad)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--fill) 55%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
+@media (prefers-reduced-motion: reduce){.live.on::before{animation:none}.bar i,.opt span{transition:none}}
+.hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:24px 48px;padding:8px 0 4px}
+.count{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.count b{font:800 clamp(72px,16vw,128px)/0.9 var(--font-display);color:var(--fill);font-variant-numeric:tabular-nums}
+.count span{font:700 20px/1.25 var(--font-display);max-width:11ch}
+.since{margin-top:10px;color:var(--muted);font-size:14px}
+.minis{display:flex;gap:36px;flex-wrap:wrap}
+.mini small{display:block;font:700 11px var(--font-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.mini b{font:800 34px/1.2 var(--font-display);font-variant-numeric:tabular-nums}
+.mini em{font-style:normal;font-size:14px;color:var(--muted);margin-left:4px}
+.sdnote{display:table;margin-top:2px;font-size:12px;font-weight:400;color:var(--muted)}
+.empty{margin-top:28px;padding:28px 0;border-top:2px solid var(--gold);max-width:56ch}
+.empty h2{font-size:22px;margin-bottom:8px}
+.block{border-top:2px solid var(--gold);margin-top:44px;padding-top:18px}
+.block h2{font-size:22px;font-weight:800}
+.block h3.mt{font-size:15px;font-weight:800;margin-bottom:4px}
+.block .sub{color:var(--muted);font-size:14px;margin-top:4px;max-width:70ch}
+
+/* Resumen general */
+.sum{display:grid;grid-template-columns:190px minmax(0,1fr);gap:0 28px;margin:14px 0 0;max-width:900px}
+.sum dt{font:700 12px var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--gold-ink);padding:14px 0;border-top:1px solid var(--line)}
+.sum dd{margin:0;padding:12px 0;border-top:1px solid var(--line)}
+.sum dt:first-of-type,.sum dd:first-of-type{border-top:0}
+
+/* Dimensiones y niveles */
+.dim,.axis{display:grid;grid-template-columns:230px minmax(0,1fr) 56px;gap:4px 16px;align-items:center}
+.dim{padding:10px 0}
+.dim .nm{font-weight:700}
+.chip{display:inline-block;margin-top:3px;padding:2px 9px;border:1.5px solid currentColor;border-radius:999px;font:700 10.5px var(--font-display);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap}
+.chip.lo{color:var(--bad)}
+.chip.mid{color:var(--gold-ink)}
+.chip.hi{color:var(--fill)}
+.dim .nm .chip{display:table}
+.track{position:relative;height:16px;background:var(--soft);border-radius:2px;overflow:hidden}
+.track i{position:absolute;inset:0 auto 0 0;background:var(--fill)}
+.track i.lo{background:var(--bad)}
+.track i.mid{background:var(--gold)}
+.track::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(25% - 1px),var(--bg) calc(25% - 1px) 25%)}
+.val{font:800 20px var(--font-display);text-align:right;font-variant-numeric:tabular-nums}
+.axis{margin-top:2px}
+.ticks{position:relative;height:18px;font-size:12px;color:var(--muted)}
+.ticks span{position:absolute;top:0;transform:translateX(-50%)}
+.ticks span:first-child{transform:none}
+.ticks span:last-child{transform:translateX(-100%)}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 40px;margin-top:30px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 14px;padding:11px 0;border-top:1px solid var(--line);align-items:start}
+.mrow p{font-weight:600;font-size:15px}
+.mrow small{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:2px}
+.mrow b{font:800 18px var(--font-display);font-variant-numeric:tabular-nums}
+
+/* Detalle */
+.tools{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{appearance:none;border:0;background:transparent;color:var(--ink);font:600 13px var(--font-body);padding:8px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--tag-bg);color:var(--tag-ink)}
+.legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:13px;color:var(--muted)}
+.legend .sw{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:14px;height:10px;display:inline-block;border-radius:1px}
+.grp{margin-top:26px}
+.grp h3{display:inline-block;background:var(--tag-bg);color:var(--tag-ink);font-size:14px;font-weight:800;padding:7px 30px 7px 14px;clip-path:polygon(0 0,100% 0,calc(100% - 14px) 100%,0 100%)}
+.qrow{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:10px 28px;padding:20px 0;border-bottom:1px solid var(--soft);align-items:center}
+.qrow .qt{margin:0;font-weight:600;font-size:15px}
+.qrow .dimtag{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:2px}
+.avgline{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.avgline b{font:800 20px var(--font-display);font-variant-numeric:tabular-nums}
+.avgline span{font-size:13px;color:var(--muted)}
+.avgline .fav{margin-left:auto}
+.cnt{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 10px;margin-top:10px;font-size:12px;color:var(--muted)}
+.cnt b{display:block;font:800 18px/1.1 var(--font-display);color:var(--ink);font-variant-numeric:tabular-nums}
+.cnt .zero{opacity:.45}
+.k-lo{background:var(--gold)}.k-mi{background:var(--line)}.k-hi{background:var(--fill)}
+.acc{margin-top:18px;border-top:2px solid var(--gold)}
+.acc summary{display:flex;align-items:center;gap:14px;padding:14px 0;list-style:none;cursor:pointer;font:800 17px var(--font-display)}
+.acc summary::-webkit-details-marker{display:none}
+.acc summary::after{content:"";flex:none;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-135deg) translate(-2px,-2px)}
+.acc:not([open]) summary::after{transform:rotate(45deg) translate(-2px,-2px)}
+.acc-name{flex:1;min-width:0}
+.acc-avg{font:600 13px var(--font-body);color:var(--muted)}
+.acc-body{padding-bottom:6px}
+.dist{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--soft)}
+.dist i{display:block;min-width:0}
+.c1{background:var(--r1)}.c2{background:var(--r2)}.c3{background:var(--r3)}.c4{background:var(--r4)}.c5{background:var(--r5)}
+
+/* NPS */
+.npsgrid{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:28px 48px;margin-top:20px;align-items:start}
+.npsnum b{display:block;font:800 clamp(56px,11vw,88px)/1 var(--font-display);font-variant-numeric:tabular-nums}
+.npsnum span{color:var(--muted);font-size:14px}
+.split{display:flex;height:18px;border-radius:2px;overflow:hidden;background:var(--soft);margin-top:6px}
+.split i{display:block}
+.k-det{background:var(--bad)}.k-pas{background:var(--gold)}.k-pro{background:var(--fill)}
+.splitlbl{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:13px;color:var(--muted)}
+.splitlbl i{display:inline-block;width:10px;height:10px;margin-right:5px;border-radius:1px}
+.hist{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;align-items:end;height:118px;margin-top:22px}
+.hcol{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;height:100%;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hcol u{text-decoration:none;display:block;width:100%;border-radius:2px 2px 0 0;min-height:2px}
+.hcol b{font-weight:700;color:var(--ink)}
+
+.cm{padding:14px 0;border-top:1px solid var(--line);max-width:70ch}
+.cm p{white-space:pre-wrap;overflow-wrap:anywhere}
+.cm small{display:block;margin-top:4px;color:var(--muted);font-size:12px}
+.foot{margin-top:48px;font-size:13px;color:var(--muted);max-width:70ch}
+
+@media (max-width:720px){
+  .dim,.axis{grid-template-columns:minmax(0,1fr) auto}
+  .dim .track{grid-column:1 / -1;order:3}
+  .axis .sp{display:none}
+  .ticks{grid-column:1 / -1}
+  .qrow{grid-template-columns:minmax(0,1fr)}
+  .npsgrid{grid-template-columns:minmax(0,1fr)}
+  .two{grid-template-columns:minmax(0,1fr)}
+  .sum{grid-template-columns:minmax(0,1fr)}
+  .sum dt{padding-bottom:0}
+  .sum dd{border-top:0;padding-top:2px}
+  .q.missing{margin-left:0}
+  .cmp{grid-template-columns:minmax(0,1fr) 72px 72px 60px;gap:0 8px}
+}
+</style>
+
+<div id="app"><div class="wrap"><p class="kicker">Diagnóstico de equipo IENN</p><p class="lede">Preparando la página…</p></div></div>
+
+<script>
+(function(){
+"use strict";
+
+var app = document.getElementById("app");
+
+var DIMS = ["Confianza","Resolución de problemas","Compromiso","Responsabilidades","Resultados"];
+var LIKERT = [
+  "Los miembros del equipo admiten sus errores y debilidades de forma abierta.",
+  "Los miembros del equipo se piden ayuda unos a otros sin dudarlo.",
+  "Los miembros del equipo se disculpan entre sí cuando actúan de forma inapropiada.",
+  "Los miembros del equipo sienten la confianza de decir “no” o “ahora no” a una nueva solicitud si ya están al máximo de su capacidad.",
+  "Los miembros del equipo están dispuestos a admitir que otros tienen mejores habilidades.",
+  "Las reuniones son apasionantes y nada aburridas.",
+  "Durante las reuniones, se sacan a relucir los temas más difíciles para resolverlos.",
+  "Los miembros del equipo expresan sus opiniones aunque sean contrarias a las de los demás.",
+  "Los miembros del equipo mantienen un trato respetuoso incluso durante discusiones acaloradas.",
+  "Se incentiva a los miembros a cuestionar el “status quo” de los procesos actuales.",
+  "Los miembros del equipo salen de las reuniones confiando en que todos aceptaron las decisiones.",
+  "El equipo termina las reuniones con directrices y metas claras.",
+  "Se apoya la decisión final del grupo, incluso si hubo desacuerdos iniciales.",
+  "Incluso con incertidumbre, el equipo toma acciones concretas en lugar de paralizarse.",
+  "Las prioridades del equipo están claras para todos en todo momento.",
+  "Los miembros del equipo se llaman la atención sobre conductas improductivas.",
+  "El equipo presiona a los miembros que rinden poco para que mejoren.",
+  "Todos se sienten responsables de los resultados, inclusive cuando son mediocres.",
+  "Los miembros prefieren confrontar a un compañero antes que acudir al líder.",
+  "El equipo revisa periódicamente su progreso respecto a los estándares establecidos.",
+  "Los miembros sacrifican voluntariamente su reconocimiento por el bien del equipo.",
+  "El equipo se enfoca en el éxito colectivo más que en objetivos individuales.",
+  "Se sienten profundamente afectados cuando el equipo no logra sus metas.",
+  "Manejamos correctamente la flexibilidad y respetamos los límites sanos.",
+  "Se celebran los hitos del equipo con entusiasmo por parte de todos."
+];
+var NPS_Q = "¿Qué tan probable es que recomiendes tu puesto de trabajo a un amigo o colega?";
+var OPEN_Q = "¿Hay algo que le quieras regalar al equipo para mejorar? ¿Cómo crees que afecta esto al equipo?";
+var N = 26;
+var DONE_KEY = "ienn-diagnostico-enviado";
+var LEVELS = { lo:"Prioridad alta", mid:"Por mejorar", hi:"Fortaleza" };
+
+var ctx = { db:null, user:null, owner:false, uid:null };
+var S = { mode:"loading", stats:null, order:"survey", loaded:false, slow:false, err:"", subscribed:false };
+
+/* ---------- utilidades ---------- */
+function h(tag, attrs){
+  var el = document.createElement(tag);
+  attrs = attrs || {};
+  Object.keys(attrs).forEach(function(k){
+    var v = attrs[k];
+    if (v === null || v === undefined || v === false) return;
+    if (k === "class") el.className = v;
+    else if (k === "text") el.textContent = v;
+    else if (k.slice(0,2) === "on") el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? "" : v);
+  });
+  for (var i = 2; i < arguments.length; i++) append(el, arguments[i]);
+  return el;
+}
+function append(el, kid){
+  if (kid === null || kid === undefined || kid === false) return;
+  if (Array.isArray(kid)) { kid.forEach(function(k){ append(el, k); }); return; }
+  el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+}
+function svg(markup, cls){ var s = h("span", { class: cls || "", "aria-hidden":"true" }); s.innerHTML = markup; return s; }
+var ICON_LOCK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+var ICON_OK = '<svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M7.5 12.5l3 3 6-6.5"/></svg>';
+function mount(node){ app.replaceChildren(node); }
+function f1(n){ return n.toLocaleString("es", { minimumFractionDigits:1, maximumFractionDigits:1 }); }
+function pct(n){ return Math.round(n * 100) + " %"; }
+function plural(n, one, many){ return n === 1 ? one : many; }
+function level(v){ return v < 3 ? "lo" : v < 4 ? "mid" : "hi"; }
+function fsd(v){ return v === null ? "—" : "± " + f1(v); }
+function spread(v){ return v === null ? "" : v < 0.5 ? "respuestas parecidas" : v < 0.8 ? "opiniones variadas" : "equipo dividido"; }
+function ago(ms){
+  if (!ms) return "";
+  var s = (Date.now() - ms) / 1000;
+  if (s < 45) return "hace unos segundos";
+  var m = Math.round(s / 60);
+  if (m < 60) return "hace " + m + " min";
+  var hh = Math.round(m / 60);
+  if (hh < 24) return "hace " + hh + " h";
+  var d = Math.round(hh / 24);
+  return "hace " + d + " " + plural(d, "día", "días");
+}
+function reduced(){ return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+
+/* Entrada discreta al panel: 5 toques seguidos en el texto pequeño del pie.
+   Solo funciona para el propietario; para cualquier otra persona no pasa nada. */
+function signature(){
+  var taps = 0, t0 = 0;
+  return h("div", { class:"sig", onclick:function(){
+    var now = Date.now();
+    if (now - t0 > 3000) taps = 0;
+    if (taps === 0) t0 = now;
+    taps++;
+    if (taps >= 5) { taps = 0; if (ctx.owner && ctx.db) showDash(); }
+  }, text:"Diagnóstico de equipo IENN · Inteligencia Colaborativa" });
+}
+
+/* ---------- encuesta ---------- */
+function scaleQ(idx, text, max, endA, endB){
+  var id = "q" + idx;
+  var w = max === 10 ? 44 : 56, gap = max === 10 ? 6 : 8;
+  var opts = [];
+  for (var v = 1; v <= max; v++) {
+    opts.push(h("label", { class:"opt" }, h("input", { type:"radio", name:id, value:String(v) }), h("span", { text:String(v) })));
+  }
+  var vars = "--n:" + max + ";--w:" + w + "px;--gap:" + gap + "px";
+  return h("div", { class:"q", id:"c" + id, role:"radiogroup", "aria-labelledby":"l" + id },
+    h("p", { class:"qt", id:"l" + id, text:text }),
+    h("div", { class:"scale", style:vars }, opts),
+    h("div", { class:"ends", style:vars }, h("span", { text:endA }), h("span", { text:endB })),
+    h("p", { class:"miss", text:"Falta responder esta pregunta.", hidden:true })
+  );
+}
+
+function tenureQ(){
+  var opts = [["si","Sí"],["no","No"],["na","Prefiero no decirlo"]].map(function(o){
+    return h("label", { class:"choice" }, h("input", { type:"radio", name:"tn", value:o[0] }), h("span", { text:o[1] }));
+  });
+  return h("div", { class:"q", id:"ctn", role:"radiogroup", "aria-labelledby":"ltn" },
+    h("p", { class:"qt", id:"ltn", text:"¿Tienes más de 3 meses en el equipo?" }),
+    h("p", { class:"hint", text:"Se usa solo para comparar grupos. Nunca se muestra por persona." }),
+    h("div", { class:"choices" }, opts),
+    h("p", { class:"miss", text:"Falta responder esta pregunta.", hidden:true })
+  );
+}
+
+function surveyView(){
+  var form = h("form", { id:"survey", novalidate:true });
+  var progText = h("span", { id:"prog-text" });
+  var barFill = h("i");
+  var status = h("p", { class:"status", role:"alert" });
+  var send = h("button", { class:"btn", type:"submit", id:"send-btn", text:"Enviar respuestas" });
+
+  function section(title){ return h("div", { class:"sec" }, h("h2", { class:"sec-tag", text:title })); }
+  form.append(section("Antes de empezar"));
+  form.append(tenureQ());
+  for (var d = 0; d < DIMS.length; d++) {
+    form.append(section(DIMS[d]));
+    for (var j = 0; j < 5; j++) form.append(scaleQ(d*5 + j + 1, LIKERT[d*5 + j], 5, "Nunca", "Siempre"));
+  }
+  form.append(section("Para cerrar"));
+  form.append(scaleQ(26, NPS_Q, 10, "No lo haría", "Lo haría sin dudarlo"));
+  form.append(h("div", { class:"q" },
+    h("label", { class:"qt", for:"q27" }, OPEN_Q, " ", h("span", { class:"opcional", text:"(opcional)" })),
+    h("textarea", { class:"ta", id:"q27", name:"q27", maxlength:"1000", rows:"4" })
+  ));
+  form.append(h("div", { class:"send" }, send, status));
+
+  function answered(){
+    var c = form.querySelector('input[name="tn"]:checked') ? 1 : 0;
+    for (var i = 1; i <= N; i++) if (form.querySelector('input[name="q' + i + '"]:checked')) c++;
+    return c;
+  }
+  function updateProgress(){
+    var c = answered(), total = N + 1;
+    progText.textContent = c + " de " + total + " respondidas";
+    barFill.style.width = (c / total * 100) + "%";
+  }
+  form.addEventListener("change", function(e){
+    updateProgress();
+    var box = e.target.closest && e.target.closest(".q");
+    if (box && box.classList.contains("missing")) {
+      box.classList.remove("missing");
+      var m = box.querySelector(".miss"); if (m) m.hidden = true;
+    }
+    status.textContent = "";
+  });
+
+  form.addEventListener("submit", function(e){
+    e.preventDefault();
+    var a = [], firstMissing = null, missing = 0;
+    var tnChk = form.querySelector('input[name="tn"]:checked');
+    if (!tnChk) {
+      var tb = document.getElementById("ctn");
+      missing++; tb.classList.add("missing"); tb.querySelector(".miss").hidden = false; firstMissing = tb;
+    }
+    for (var i = 1; i <= N; i++) {
+      var box = document.getElementById("cq" + i);
+      var chk = form.querySelector('input[name="q' + i + '"]:checked');
+      if (!chk) {
+        missing++; box.classList.add("missing"); box.querySelector(".miss").hidden = false;
+        if (!firstMissing) firstMissing = box;
+      } else a.push(parseInt(chk.value, 10));
+    }
+    if (missing) {
+      status.textContent = "Faltan " + missing + " " + plural(missing, "pregunta", "preguntas") + " por responder.";
+      firstMissing.scrollIntoView({ block:"center", behavior: reduced() ? "auto" : "smooth" });
+      return;
+    }
+    if (!ctx.db || !ctx.uid) {
+      status.textContent = "No pudimos guardar tu respuesta. Inicia sesión en Claude y vuelve a intentarlo.";
+      return;
+    }
+    send.disabled = true; send.textContent = "Enviando…"; status.textContent = "";
+    var text = (document.getElementById("q27").value || "").trim().slice(0, 1000);
+    var ref = ctx.db.collection("responses").doc(ctx.uid);
+    ref.get().then(function(snap){
+      if (snap.exists) return "ya";
+      return ref.set({ a:a, t:text, tn:tnChk.value, at:new Date().toISOString() });
+    }).then(function(){
+      try { localStorage.setItem(DONE_KEY, "1"); } catch(err){}
+      showThanks();
+    }, function(err){
+      send.disabled = false; send.textContent = "Enviar respuestas";
+      var code = err && err.code;
+      if (code === "invalid_argument") status.textContent = "Tu acceso no permite enviar respuestas. Pide a quien compartió la encuesta que te dé permiso de Colaborador.";
+      else if (code === "quota_exceeded") status.textContent = "La encuesta alcanzó su límite de respuestas. Avisa a quien la compartió.";
+      else status.textContent = "No se pudo enviar. Revisa tu conexión y vuelve a intentarlo.";
+    });
+  });
+
+  var node = h("div", { class:"wrap" },
+    h("p", { class:"kicker", text:"Inteligencia Colaborativa" }),
+    h("h1", { text:"Diagnóstico de equipo IENN" }),
+    h("div", { class:"rule", style:"margin-top:18px;max-width:120px" }),
+    h("p", { class:"lede", text:"Esta encuesta tiene como objetivo hacer un diagnóstico de equipo para seguir trabajando hacia la Inteligencia Colaborativa." }),
+    h("p", { class:"lede", text:"Tus respuestas son anónimas y fundamentales para mejorar nuestro sistema. ¡Agradecemos tu tiempo y sinceridad!" }),
+    h("p", { class:"req", text:"Todas las preguntas son obligatorias, excepto la última. En cada afirmación, 1 significa “Nunca” y 5 significa “Siempre”. Solo puedes enviar la encuesta una vez." }),
+    h("div", { class:"progress" }, h("div", { class:"row" }, progText, h("span", { text:"Marca un óvalo por pregunta" })), h("div", { class:"bar" }, barFill)),
+    form,
+    signature()
+  );
+  updateProgress();
+  return node;
+}
+
+function showThanks(){
+  S.mode = "thanks";
+  mount(h("div", { class:"wrap thanks" },
+    svg(ICON_OK),
+    h("h1", { text:"Gracias por tu sinceridad" }),
+    h("p", { class:"lede", text:"Tu respuesta quedó registrada. Los resultados se muestran sin nombres." }),
+    h("p", { class:"req", text:"Cada persona responde una sola vez, así que no se puede enviar otra." }),
+    signature()
+  ));
+  window.scrollTo(0,0);
+}
+
+function showSurvey(){
+  S.mode = "survey";
+  mount(surveyView());
+}
+
+/* ---------- análisis ---------- */
+function computeStats(docs){
+  var rows = [];
+  docs.forEach(function(d){
+    var x = d.data();
+    if (!x || !Array.isArray(x.a) || x.a.length !== N) return;
+    for (var i = 0; i < N; i++) {
+      var v = x.a[i], max = i === 25 ? 10 : 5;
+      if (typeof v !== "number" || Math.floor(v) !== v || v < 1 || v > max) return;
+    }
+    rows.push({ a:x.a, t: typeof x.t === "string" ? x.t.trim().slice(0,1000) : "", tn: (x.tn === "si" || x.tn === "no") ? x.tn : "na", at: typeof x.at === "string" ? Date.parse(x.at) || 0 : 0 });
+  });
+  var n = rows.length;
+  var dist = [];
+  for (var i = 0; i < N; i++) { var z = []; for (var k = 0; k < (i === 25 ? 10 : 5); k++) z.push(0); dist.push(z); }
+  rows.forEach(function(r){ r.a.forEach(function(v, i){ dist[i][v-1]++; }); });
+  var avg = dist.map(function(c){ var s = 0; c.forEach(function(q, j){ s += q * (j+1); }); return n ? s / n : 0; });
+  var dimAvg = DIMS.map(function(_, d){ var s = 0; for (var q = d*5; q < d*5+5; q++) s += avg[q]; return n ? s / 5 : 0; });
+  var overall = n ? dimAvg.reduce(function(a,b){ return a+b; }, 0) / 5 : 0;
+  var favCount = 0; for (var f = 0; f < 25; f++) favCount += dist[f][3] + dist[f][4];
+  var favAll = n ? favCount / (25 * n) : 0;
+  var c = dist[25];
+  var det = 0; for (var a = 0; a < 6; a++) det += c[a];
+  var pas = c[6] + c[7], pro = c[8] + c[9];
+  var nps = n ? Math.round((pro - det) / n * 100) : 0;
+  var texts = rows.filter(function(r){ return r.t; }).sort(function(p, q){ return q.at - p.at; });
+  var last = 0; rows.forEach(function(r){ if (r.at > last) last = r.at; });
+  function agg(list){
+    var m = list.length, sums = [0,0,0,0,0], p = 0, dt = 0;
+    list.forEach(function(r){
+      for (var q = 0; q < 25; q++) sums[Math.floor(q / 5)] += r.a[q];
+      if (r.a[25] >= 9) p++; else if (r.a[25] <= 6) dt++;
+    });
+    return { n:m, dimAvg: sums.map(function(s){ return m ? s / (5 * m) : 0; }), nps: m ? Math.round((p - dt) / m * 100) : 0 };
+  }
+  var groups = {
+    si: agg(rows.filter(function(r){ return r.tn === "si"; })),
+    no: agg(rows.filter(function(r){ return r.tn === "no"; })),
+    na: agg(rows.filter(function(r){ return r.tn === "na"; }))
+  };
+  function sd(list){
+    if (list.length < 2) return null;
+    var m = 0; list.forEach(function(v){ m += v; }); m /= list.length;
+    var s = 0; list.forEach(function(v){ s += (v - m) * (v - m); });
+    return Math.sqrt(s / (list.length - 1));
+  }
+  var sdOverall = sd(rows.map(function(r){ var s = 0; for (var q = 0; q < 25; q++) s += r.a[q]; return s / 25; }));
+  var sdDim = DIMS.map(function(_, d){ return sd(rows.map(function(r){ var s = 0; for (var q = d*5; q < d*5+5; q++) s += r.a[q]; return s / 5; })); });
+  return { n:n, dist:dist, avg:avg, dimAvg:dimAvg, overall:overall, favAll:favAll, nps:nps, det:det, pas:pas, pro:pro, texts:texts, last:last, groups:groups, sdOverall:sdOverall, sdDim:sdDim };
+}
+
+function rankings(st){
+  var dimOrder = DIMS.map(function(_, i){ return i; }).sort(function(a, b){ return st.dimAvg[a] - st.dimAvg[b] || a - b; });
+  var qOrder = []; for (var i = 0; i < 25; i++) qOrder.push(i);
+  qOrder.sort(function(a, b){ return st.avg[a] - st.avg[b] || a - b; });
+  return { dimOrder:dimOrder, qOrder:qOrder };
+}
+
+/* ---------- panel ---------- */
+function summaryBlock(st, rk){
+  var n = st.n;
+  var loD = rk.dimOrder[0], hiD = rk.dimOrder[DIMS.length - 1];
+  var below3 = 0, above4 = 0;
+  for (var i = 0; i < 25; i++) { if (st.avg[i] < 3) below3++; if (st.avg[i] >= 4) above4++; }
+  var lowQ = rk.qOrder[0], topQ = rk.qOrder[24];
+
+  var oport;
+  if (st.dimAvg[loD] >= 4) {
+    oport = "Todas las dimensiones están en zona de fortaleza. La de menor puntaje es " + DIMS[loD] + " (" + f1(st.dimAvg[loD]) + ").";
+  } else {
+    oport = DIMS[loD] + " (" + f1(st.dimAvg[loD]) + ") es la dimensión con más oportunidad de mejora.";
+    var second = rk.dimOrder[1];
+    if (st.dimAvg[second] < 4) oport += " Le sigue " + DIMS[second] + " (" + f1(st.dimAvg[second]) + ").";
+  }
+  oport += " La afirmación con menor puntaje es “" + LIKERT[lowQ] + "” (" + f1(st.avg[lowQ]) + ").";
+  if (below3) oport += " " + below3 + " de las 25 afirmaciones quedaron por debajo de 3,0.";
+
+  var nps = (st.nps > 0 ? "+" : "") + st.nps;
+  var npsTxt = "Índice de recomendación " + nps + ": " + st.pro + " " + plural(st.pro, "promotor", "promotores") + ", " + st.pas + " " + plural(st.pas, "pasivo", "pasivos") + " y " + st.det + " " + plural(st.det, "detractor", "detractores") + ". " +
+    (st.nps > 0 ? "Hay más promotores que detractores." : st.nps < 0 ? "Hay más detractores que promotores." : "Promotores y detractores están igualados.");
+
+  var k = st.texts.length;
+  var dl = h("dl", { class:"sum" },
+    h("dt", { text:"Participación" }),
+    h("dd", { text: n + " " + plural(n, "persona respondió", "personas respondieron") + ". El promedio general es " + f1(st.overall) + " de 5 y " + pct(st.favAll) + " de las respuestas fueron 4 o 5." + (st.sdOverall === null ? "" : " La dispersión entre personas es " + fsd(st.sdOverall) + " (" + spread(st.sdOverall) + ").") }),
+    h("dt", { text:"Lo que mejor funciona" }),
+    h("dd", { text: DIMS[hiD] + " (" + f1(st.dimAvg[hiD]) + ") es la dimensión mejor valorada. La afirmación con mayor puntaje es “" + LIKERT[topQ] + "” (" + f1(st.avg[topQ]) + ")." + (above4 ? " " + above4 + " de las 25 afirmaciones llegaron a 4,0 o más." : "") }),
+    h("dt", { text:"Mayor oportunidad" }),
+    h("dd", { text:oport }),
+    h("dt", { text:"Recomendación" }),
+    h("dd", { text:npsTxt }),
+    h("dt", { text:"Comentarios" }),
+    h("dd", { text: k ? k + " " + plural(k, "persona dejó un comentario", "personas dejaron un comentario") + " en la pregunta abierta." : "Nadie ha dejado comentarios todavía." }));
+
+  return h("section", { class:"block" },
+    h("h2", { text:"Resumen general" }),
+    h("p", { class:"sub", text:"Se recalcula solo con cada respuesta nueva." }),
+    n < 5 ? h("p", { class:"note", text:"Con menos de 5 respuestas, los promedios cambian mucho de una persona a otra. Úsalos como referencia, no como conclusión." }) : null,
+    dl);
+}
+
+function mrow(st, i, withValueLevel){
+  return h("div", { class:"mrow" },
+    h("p", {}, LIKERT[i], h("small", { text:DIMS[Math.floor(i/5)] })),
+    h("b", { text:f1(st.avg[i]) }));
+}
+
+function opportunityBlock(st, rk){
+  var rows = rk.dimOrder.map(function(d, pos){
+    var v = st.dimAvg[d], lv = level(v);
+    return h("div", { class:"dim" },
+      h("span", { class:"nm" }, (pos + 1) + ". " + DIMS[d], h("span", { class:"chip " + lv, text:LEVELS[lv] }), st.sdDim[d] === null ? null : h("span", { class:"sdnote", text:"dispersión " + fsd(st.sdDim[d]) })),
+      h("div", { class:"track", role:"img", "aria-label":DIMS[d] + ": promedio " + f1(v) + " de 5, " + LEVELS[lv] }, h("i", { class:lv, style:"width:" + ((v - 1) / 4 * 100) + "%" })),
+      h("span", { class:"val", text:f1(v) }));
+  });
+  var ticks = h("div", { class:"ticks" });
+  for (var t = 1; t <= 5; t++) ticks.append(h("span", { style:"left:" + ((t-1)/4*100) + "%", text:String(t) }));
+
+  var low5 = rk.qOrder.slice(0, 5);
+  var top3 = rk.qOrder.slice(-3).reverse();
+  var lowBox = h("div", {}, h("h3", { class:"mt", text:"Las 5 afirmaciones con menor puntaje" }));
+  low5.forEach(function(i){ lowBox.append(mrow(st, i)); });
+  var topBox = h("div", {}, h("h3", { class:"mt", text:"Las 3 afirmaciones con mayor puntaje" }));
+  top3.forEach(function(i){ topBox.append(mrow(st, i)); });
+
+  return h("section", { class:"block" },
+    h("h2", { text:"Dónde hay más oportunidad de mejora" }),
+    h("p", { class:"sub", text:"Dimensiones ordenadas de menor a mayor promedio (escala de 1 a 5). Prioridad alta: menos de 3,0. Por mejorar: de 3,0 a 3,9. Fortaleza: 4,0 o más. La dispersión (±) mide cuánto se separan las opiniones entre personas: bajo 0,5 son parecidas, de 0,5 a 0,8 variadas y sobre 0,8 el equipo está dividido." }),
+    h("div", { style:"margin-top:10px" }, rows,
+      h("div", { class:"axis" }, h("span", { class:"sp" }), ticks, h("span", { class:"sp" }))),
+    h("div", { class:"two" }, lowBox, topBox));
+}
+
+function tenureBlock(st){
+  var g = st.groups, MIN = 3;
+  var box = h("section", { class:"block" },
+    h("h2", { text:"Más de 3 meses y 3 meses o menos en el equipo" }),
+    h("p", { class:"sub", text:"Compara los promedios de quienes llevan más de 3 meses con los de quienes llevan 3 meses o menos." }),
+    h("p", { class:"lede", text: g.si.n + " con más de 3 meses · " + g.no.n + " con 3 meses o menos · " + g.na.n + " prefirieron no decirlo o respondieron antes de que existiera esta pregunta." }));
+  if (g.si.n < MIN || g.no.n < MIN) {
+    box.append(h("p", { class:"note", text:"Para proteger el anonimato, la comparación aparece cuando cada grupo tiene al menos " + MIN + " respuestas." }));
+    return box;
+  }
+  function sg(d){ return (d > 0 ? "+" : "") + f1(d); }
+  var grid = h("div", { class:"cmp" },
+    h("span", { class:"hd", text:"Dimensión" }), h("span", { class:"hd", text:"Más de 3 meses" }), h("span", { class:"hd", text:"3 meses o menos" }), h("span", { class:"hd", text:"Diferencia" }));
+  DIMS.forEach(function(name, i){
+    var d = g.si.dimAvg[i] - g.no.dimAvg[i];
+    grid.append(h("span", { text:name }), h("span", { class:"num", text:f1(g.si.dimAvg[i]) }), h("span", { class:"num", text:f1(g.no.dimAvg[i]) }), h("span", { class:"diff" + (Math.abs(d) >= 0.5 ? " gap" : ""), text:sg(d) }));
+  });
+  var dn = g.si.nps - g.no.nps;
+  grid.append(h("span", { text:"NPS" }), h("span", { class:"num", text:(g.si.nps > 0 ? "+" : "") + g.si.nps }), h("span", { class:"num", text:(g.no.nps > 0 ? "+" : "") + g.no.nps }), h("span", { class:"diff", text:(dn > 0 ? "+" : "") + dn }));
+  box.append(grid, h("p", { class:"foot", style:"margin-top:14px", text:"Las diferencias de 0,5 puntos o más aparecen resaltadas. Con pocas respuestas por grupo, una sola persona puede mover mucho el promedio." }));
+  return box;
+}
+
+function qRow(st, i, showDim){
+  var c = st.dist[i], n = st.n;
+  var fav = n ? (c[3] + c[4]) / n : 0;
+  var lo = c[0] + c[1], mi = c[2], hi = c[3] + c[4];
+  var segs = [["k-lo", lo, "1 o 2"], ["k-mi", mi, "3"], ["k-hi", hi, "4 o 5"]].map(function(g){
+    return h("i", { class:g[0], style:"flex:" + g[1], title: g[1] + " " + plural(g[1], "persona", "personas") + " en " + g[2] });
+  });
+  var summary = LIKERT[i] + " Promedio " + f1(st.avg[i]) + " de 5. " + pct(fav) + " eligió 4 o 5. Personas: " + (c[0] + c[1]) + " en 1 o 2, " + c[2] + " en 3, " + (c[3] + c[4]) + " en 4 o 5.";
+  return h("div", { class:"qrow" },
+    h("p", { class:"qt" }, LIKERT[i], showDim ? h("span", { class:"dimtag", text:DIMS[Math.floor(i/5)] }) : null),
+    h("div", {},
+      h("div", { class:"avgline" }, h("b", { text:f1(st.avg[i]) }), h("span", { text:"de 5" }), h("span", { class:"fav", text:pct(fav) + " favorable" })),
+      h("div", { class:"dist", role:"img", "aria-label":summary }, segs),
+      h("div", { class:"cnt" }, [["1 o 2", lo], ["3", mi], ["4 o 5", hi]].map(function(g){
+        return h("span", { class: g[1] ? "" : "zero" }, h("b", { text:String(g[1]) }), g[0]);
+      }))));
+}
+
+function detailBlock(st, rk){
+  var legend = h("div", { class:"legend" });
+  [["k-lo", "1 o 2"], ["k-mi", "3"], ["k-hi", "4 o 5"]].forEach(function(g){
+    legend.append(h("span", { class:"sw" }, h("i", { class:g[0] }), g[1]));
+  });
+  var tools = h("div", { class:"tools" },
+    legend,
+    h("div", { class:"seg", role:"group", "aria-label":"Orden de las preguntas" },
+      h("button", { type:"button", id:"ord-survey", "aria-pressed": S.order === "survey" ? "true" : "false", onclick:function(){ S.order = "survey"; renderDash(); }, text:"Orden de la encuesta" }),
+      h("button", { type:"button", id:"ord-asc", "aria-pressed": S.order === "asc" ? "true" : "false", onclick:function(){ S.order = "asc"; renderDash(); }, text:"Promedio más bajo primero" })));
+  var list = h("div", {});
+  if (S.order === "asc") {
+    var box = h("div", { class:"grp" });
+    rk.qOrder.forEach(function(i){ box.append(qRow(st, i, true)); });
+    list.append(box);
+  } else {
+    var closed = S.closed || (S.closed = {});
+    DIMS.forEach(function(name, d){
+      var det = h("details", { class:"acc", id:"acc-" + d },
+        h("summary", { id:"sum-" + d },
+          h("span", { class:"acc-name", text:name }),
+          h("span", { class:"acc-avg", text: f1(st.dimAvg[d]) + " de promedio" })));
+      if (!closed[d]) det.open = true;
+      det.addEventListener("toggle", function(){ closed[d] = !det.open; });
+      var body = h("div", { class:"acc-body" });
+      for (var q = d*5; q < d*5+5; q++) body.append(qRow(st, q, false));
+      det.append(body);
+      list.append(det);
+    });
+  }
+  return h("section", { class:"block" },
+    h("h2", { text:"Detalle por pregunta" }),
+    h("p", { class:"sub", text:"Cada barra agrupa las respuestas en tres niveles. Debajo ves cuántas personas eligieron cada uno. En el orden de la encuesta, toca el nombre de una dimensión para cerrarla o abrirla." }),
+    tools, list);
+}
+
+function npsBlock(st){
+  var n = st.n;
+  var c = st.dist[25];
+  var max = Math.max.apply(null, c.concat([1]));
+  var hist = h("div", { class:"hist", role:"img", "aria-label":"Respuestas a la pregunta de recomendación, del 1 al 10" });
+  c.forEach(function(q, j){
+    var cls = j < 6 ? "k-det" : j < 8 ? "k-pas" : "k-pro";
+    hist.append(h("div", { class:"hcol" }, h("span", { text: q ? String(q) : "" }), h("u", { class:cls, style:"height:" + (q / max * 70) + "px" }), h("b", { text:String(j+1) })));
+  });
+  var sign = st.nps > 0 ? "+" : "";
+  return h("section", { class:"block" },
+    h("h2", { text:"¿Recomendarían su puesto de trabajo?" }),
+    h("p", { class:"sub", text:"Escala de 1 a 10. Promotores: 9 y 10. Pasivos: 7 y 8. Detractores: 1 a 6. El índice (NPS) es el % de promotores menos el % de detractores." }),
+    h("div", { class:"npsgrid" },
+      h("div", { class:"npsnum" }, h("b", { text: sign + st.nps }), h("span", { text:"índice de recomendación (NPS)" })),
+      h("div", {},
+        h("div", { class:"split", role:"img", "aria-label":st.det + " detractores, " + st.pas + " pasivos, " + st.pro + " promotores" },
+          h("i", { class:"k-det", style:"flex:" + st.det }), h("i", { class:"k-pas", style:"flex:" + st.pas }), h("i", { class:"k-pro", style:"flex:" + st.pro })),
+        h("div", { class:"splitlbl" },
+          h("span", {}, h("i", { class:"k-det" }), "Detractores " + st.det + " (" + pct(st.det / n) + ")"),
+          h("span", {}, h("i", { class:"k-pas" }), "Pasivos " + st.pas + " (" + pct(st.pas / n) + ")"),
+          h("span", {}, h("i", { class:"k-pro" }), "Promotores " + st.pro + " (" + pct(st.pro / n) + ")")),
+        hist)));
+}
+
+function commentsBlock(st){
+  var box = h("section", { class:"block" },
+    h("h2", { text:"Comentarios del equipo" }),
+    h("p", { class:"sub", text:"Pregunta abierta, sin nombres. " + (st.texts.length ? st.texts.length + " " + plural(st.texts.length, "comentario", "comentarios") + ", los más recientes primero." : "Todavía no hay comentarios.") }),
+    h("div", { style:"margin-top:10px" }));
+  var list = box.lastChild;
+  st.texts.forEach(function(r){
+    list.append(h("div", { class:"cm" }, h("p", { text:r.t }), h("small", { "data-at":String(r.at), text: ago(r.at) })));
+  });
+  return box;
+}
+
+function dashView(){
+  var st = S.stats;
+  var state, cls = "live";
+  if (S.err) { state = "Sin conexión con los datos"; cls += " off"; }
+  else if (S.slow) { state = "Sin respuesta del servidor; la cifra puede estar desactualizada"; cls += " off"; }
+  else if (!S.loaded) { state = "Conectando…"; }
+  else { state = "En vivo"; cls += " on"; }
+
+  var head = h("header", { class:"dh" },
+    h("div", {}, h("p", { class:"kicker", text:"Panel privado · Inteligencia Colaborativa" }), h("h1", { text:"Diagnóstico de equipo IENN" })),
+    h("div", { class:"dh-side" },
+      h("span", { class:"pill" }, svg(ICON_LOCK), "Solo tú ves esta vista"),
+      h("span", { class:cls, text:state }),
+      h("button", { class:"btn ghost", type:"button", id:"exit-btn", onclick:function(){ S.mode = "survey"; mount(surveyView()); window.scrollTo(0,0); }, text:"Salir del panel" })));
+
+  var body;
+  if (!st) {
+    body = h("div", { class:"empty" }, h("h2", { text:"Leyendo respuestas…" }), h("p", { class:"lede", text:"En unos segundos aparece el conteo." }));
+  } else {
+    var n = st.n;
+    var hero = h("div", { class:"hero" },
+      h("div", {},
+        h("div", { class:"count" }, h("b", { text:String(n) }), h("span", { text: plural(n, "persona ha respondido", "personas han respondido") })),
+        n ? h("p", { class:"since" }, "Última respuesta ", h("span", { "data-at":String(st.last), text: st.last ? ago(st.last) : "—" })) : null),
+      n ? h("div", { class:"minis" },
+        h("div", { class:"mini" }, h("small", { text:"Promedio general" }), h("b", { text:f1(st.overall) }), h("em", { text:"de 5" })),
+        h("div", { class:"mini" }, h("small", { text:"Dispersión" }), h("b", { text:fsd(st.sdOverall) }), h("em", { text:spread(st.sdOverall) })),
+        h("div", { class:"mini" }, h("small", { text:"NPS" }), h("b", { text:(st.nps > 0 ? "+" : "") + st.nps }))) : null);
+    if (!n) {
+      body = h("div", {}, hero, h("div", { class:"empty" },
+        h("h2", { text:"Todavía nadie ha respondido" }),
+        h("p", { class:"lede", text:"Comparte el enlace de la encuesta con tu equipo. Cada respuesta aparece aquí al instante, sin recargar." })));
+    } else {
+      var rk = rankings(st);
+      body = h("div", {}, hero, summaryBlock(st, rk), opportunityBlock(st, rk), tenureBlock(st), detailBlock(st, rk), npsBlock(st), commentsBlock(st),
+        h("p", { class:"foot", text:"Esta página se actualiza sola. Las respuestas se muestran sin nombres. Si alguien vuelve a enviar la encuesta, su respuesta anterior se reemplaza y no se cuenta dos veces." }));
+    }
+  }
+  var note = null;
+  if (S.err) note = h("p", { class:"note", text:"No se pudieron leer las respuestas (" + S.err + "). Recarga la página para volver a intentarlo." });
+
+  return h("div", { class:"wrap wide" }, head, h("div", { class:"rule" }), note, body);
+}
+
+function renderDash(){
+  var ae = document.activeElement && document.activeElement.id;
+  var y = window.scrollY;
+  mount(dashView());
+  if (ae) { var el = document.getElementById(ae); if (el && el.focus) el.focus({ preventScroll:true }); }
+  window.scrollTo(0, y);
+}
+
+function showDash(){
+  S.mode = "dash";
+  renderDash();
+  window.scrollTo(0, 0);
+  if (S.subscribed) return;
+  S.subscribed = true;
+  var timer = setTimeout(function(){ if (!S.loaded) { S.slow = true; if (S.mode === "dash") renderDash(); } }, 10000);
+  ctx.db.collection("responses").onSnapshot(function(snap){
+    S.stats = computeStats(snap.docs);
+    if (!snap.metadata.fromCache) { S.loaded = true; S.slow = false; S.err = ""; clearTimeout(timer); }
+    if (S.mode === "dash") renderDash();
+  }, function(err){
+    clearTimeout(timer);
+    S.err = (err && err.code) || "error";
+    if (S.mode === "dash") renderDash();
+  });
+  setInterval(function(){
+    var nodes = document.querySelectorAll("[data-at]");
+    for (var i = 0; i < nodes.length; i++) { var t = parseInt(nodes[i].getAttribute("data-at"), 10); if (t) nodes[i].textContent = ago(t); }
+  }, 30000);
+}
+
+/* ---------- arranque ---------- */
+(function boot(){
+  var run = async function(){
+    var user = null, db = null;
+    try {
+      if (window.claude && window.claude.use) {
+        var r = await Promise.all([window.claude.use("user"), window.claude.use("db")]);
+        user = r[0]; db = r[1];
+      }
+    } catch(e){}
+    ctx.user = user; ctx.db = db;
+    ctx.owner = user ? await user.isOwner() : false;
+    ctx.uid = user ? await user.id() : null;
+    var already = false;
+    if (db && ctx.uid) {
+      try { already = (await db.collection("responses").doc(ctx.uid).get()).exists; } catch(e){}
+    }
+    if (already) showThanks(); else showSurvey();
+  };
+  run();
+})();
+})();
+</script>
