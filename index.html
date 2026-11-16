@@ -1,5 +1,11 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
 <title>Diagnóstico de equipo IENN</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Encuesta de diagnóstico de equipo para la Inteligencia Colaborativa.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&display=swap">
@@ -7,6 +13,7 @@
 /* Diseño: una columna de lectura para responder y un panel más ancho para el propietario.
    Cintas inclinadas y filetes dorados tomados de la infografía "El escudo de nuestro ADN". */
 :root{
+  color-scheme:light;
   --font-display:"Montserrat","Segoe UI",system-ui,sans-serif;
   --font-body:"Nunito Sans","Segoe UI",system-ui,sans-serif;
   --bg:#F5F8F5; --surface:#FFFFFF; --ink:#13213A; --muted:#566379; --line:#D5DFD8;
@@ -37,8 +44,10 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
 body{
+  margin:0;
   background:var(--bg);color:var(--ink);
   font:400 16px/1.55 var(--font-body);
   padding-block:0 56px;
@@ -117,6 +126,8 @@ h1{font-size:clamp(28px,6.2vw,44px);font-weight:800;margin-top:8px;letter-spacin
 .send{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:30px}
 .status{font-size:14px;font-weight:700;color:var(--bad)}
 .thanks{padding:64px 0 0}
+.keyform{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px;max-width:440px}
+.keyin{flex:1;min-width:200px;padding:12px 14px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit}
 .thanks svg{color:var(--fill)}
 .thanks h1{margin-top:16px}
 .linkbtn{appearance:none;background:none;border:0;padding:0;color:var(--ink);text-decoration:underline;font:inherit;cursor:pointer}
@@ -249,7 +260,8 @@ h1{font-size:clamp(28px,6.2vw,44px);font-weight:800;margin-top:8px;letter-spacin
   .cmp{grid-template-columns:minmax(0,1fr) 72px 72px 60px;gap:0 8px}
 }
 </style>
-
+</head>
+<body>
 <div id="app"><div class="wrap"><p class="kicker">Diagnóstico de equipo IENN</p><p class="lede">Preparando la página…</p></div></div>
 
 <script>
@@ -290,10 +302,17 @@ var NPS_Q = "¿Qué tan probable es que recomiendes tu puesto de trabajo a un am
 var OPEN_Q = "¿Hay algo que le quieras regalar al equipo para mejorar? ¿Cómo crees que afecta esto al equipo?";
 var N = 26;
 var DONE_KEY = "ienn-diagnostico-enviado";
+var TOKEN_KEY = "ienn-diagnostico-token";
+var KEY_KEY = "ienn-diagnostico-clave";
+/* Dirección del script de Google que guarda las respuestas en la hoja. */
+var API_URL = "";
+/* Código del equipo: viene en el enlace de la encuesta (?c=...). */
+var TEAM_CODE = "";
+try { TEAM_CODE = new URLSearchParams(location.search).get("c") || ""; } catch(e){}
 var LEVELS = { lo:"Prioridad alta", mid:"Por mejorar", hi:"Fortaleza" };
 
-var ctx = { db:null, user:null, owner:false, uid:null };
-var S = { mode:"loading", stats:null, order:"survey", loaded:false, slow:false, err:"", subscribed:false };
+var ctx = { key:"" };
+var S = { mode:"loading", stats:null, order:"survey", loaded:false, err:"", poll:null };
 
 /* ---------- utilidades ---------- */
 function h(tag, attrs){
@@ -338,8 +357,24 @@ function ago(ms){
 }
 function reduced(){ return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
 
+/* Marca aleatoria del navegador: evita que la misma persona envíe dos veces. No identifica a nadie. */
+function getToken(){
+  var t = "";
+  try { t = localStorage.getItem(TOKEN_KEY) || ""; } catch(e){}
+  if (!t) {
+    var a = new Uint8Array(16);
+    window.crypto.getRandomValues(a);
+    t = Array.prototype.map.call(a, function(b){ return ("0" + b.toString(16)).slice(-2); }).join("");
+    try { localStorage.setItem(TOKEN_KEY, t); } catch(e){}
+  }
+  return t;
+}
+function callApi(payload){
+  return fetch(API_URL, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" }, body:JSON.stringify(payload) }).then(function(r){ return r.json(); });
+}
+
 /* Entrada discreta al panel: 5 toques seguidos en el texto pequeño del pie.
-   Solo funciona para el propietario; para cualquier otra persona no pasa nada. */
+   Pide la clave del panel; sin ella no se ve ningún resultado. */
 function signature(){
   var taps = 0, t0 = 0;
   return h("div", { class:"sig", onclick:function(){
@@ -347,7 +382,7 @@ function signature(){
     if (now - t0 > 3000) taps = 0;
     if (taps === 0) t0 = now;
     taps++;
-    if (taps >= 5) { taps = 0; if (ctx.owner && ctx.db) showDash(); }
+    if (taps >= 5) { taps = 0; openPanel(); }
   }, text:"Diagnóstico de equipo IENN · Inteligencia Colaborativa" });
 }
 
@@ -443,25 +478,26 @@ function surveyView(){
       firstMissing.scrollIntoView({ block:"center", behavior: reduced() ? "auto" : "smooth" });
       return;
     }
-    if (!ctx.db || !ctx.uid) {
-      status.textContent = "No pudimos guardar tu respuesta. Inicia sesión en Claude y vuelve a intentarlo.";
+    if (!API_URL) {
+      status.textContent = "La encuesta todavía no está conectada a su hoja de resultados. Avisa a quien te la compartió.";
       return;
     }
     send.disabled = true; send.textContent = "Enviando…"; status.textContent = "";
     var text = (document.getElementById("q27").value || "").trim().slice(0, 1000);
-    var ref = ctx.db.collection("responses").doc(ctx.uid);
-    ref.get().then(function(snap){
-      if (snap.exists) return "ya";
-      return ref.set({ a:a, t:text, tn:tnChk.value, at:new Date().toISOString() });
-    }).then(function(){
-      try { localStorage.setItem(DONE_KEY, "1"); } catch(err){}
-      showThanks();
-    }, function(err){
+    callApi({ action:"submit", code:TEAM_CODE, token:getToken(), a:a, t:text, tn:tnChk.value }).then(function(res){
+      if (res && (res.ok || res.error === "duplicate")) {
+        try { localStorage.setItem(DONE_KEY, "1"); } catch(err){}
+        showThanks();
+        return;
+      }
       send.disabled = false; send.textContent = "Enviar respuestas";
-      var code = err && err.code;
-      if (code === "invalid_argument") status.textContent = "Tu acceso no permite enviar respuestas. Pide a quien compartió la encuesta que te dé permiso de Colaborador.";
-      else if (code === "quota_exceeded") status.textContent = "La encuesta alcanzó su límite de respuestas. Avisa a quien la compartió.";
-      else status.textContent = "No se pudo enviar. Revisa tu conexión y vuelve a intentarlo.";
+      var er = res && res.error;
+      status.textContent = er === "code" ? "Este enlace no es válido. Pide a quien organiza la encuesta que te lo envíe de nuevo."
+        : er === "busy" ? "Hay muchas personas enviando a la vez. Espera unos segundos y vuelve a intentarlo."
+        : "No se pudo guardar tu respuesta. Vuelve a intentarlo.";
+    }, function(){
+      send.disabled = false; send.textContent = "Enviar respuestas";
+      status.textContent = "No se pudo enviar. Revisa tu conexión y vuelve a intentarlo.";
     });
   });
 
@@ -493,6 +529,9 @@ function showThanks(){
 }
 
 function showSurvey(){
+  var done = false;
+  try { done = localStorage.getItem(DONE_KEY) === "1"; } catch(e){}
+  if (done) { showThanks(); return; }
   S.mode = "survey";
   mount(surveyView());
 }
@@ -747,17 +786,16 @@ function commentsBlock(st){
 function dashView(){
   var st = S.stats;
   var state, cls = "live";
-  if (S.err) { state = "Sin conexión con los datos"; cls += " off"; }
-  else if (S.slow) { state = "Sin respuesta del servidor; la cifra puede estar desactualizada"; cls += " off"; }
+  if (S.err) { state = "Sin conexión con el servidor"; cls += " off"; }
   else if (!S.loaded) { state = "Conectando…"; }
-  else { state = "En vivo"; cls += " on"; }
+  else { state = "Se actualiza cada 20 s"; cls += " on"; }
 
   var head = h("header", { class:"dh" },
     h("div", {}, h("p", { class:"kicker", text:"Panel privado · Inteligencia Colaborativa" }), h("h1", { text:"Diagnóstico de equipo IENN" })),
     h("div", { class:"dh-side" },
-      h("span", { class:"pill" }, svg(ICON_LOCK), "Solo tú ves esta vista"),
+      h("span", { class:"pill" }, svg(ICON_LOCK), "Protegido con tu clave"),
       h("span", { class:cls, text:state }),
-      h("button", { class:"btn ghost", type:"button", id:"exit-btn", onclick:function(){ S.mode = "survey"; mount(surveyView()); window.scrollTo(0,0); }, text:"Salir del panel" })));
+      h("button", { class:"btn ghost", type:"button", id:"exit-btn", onclick:function(){ stopPoll(); S.mode = "survey"; mount(surveyView()); window.scrollTo(0,0); }, text:"Salir del panel" })));
 
   var body;
   if (!st) {
@@ -775,15 +813,15 @@ function dashView(){
     if (!n) {
       body = h("div", {}, hero, h("div", { class:"empty" },
         h("h2", { text:"Todavía nadie ha respondido" }),
-        h("p", { class:"lede", text:"Comparte el enlace de la encuesta con tu equipo. Cada respuesta aparece aquí al instante, sin recargar." })));
+        h("p", { class:"lede", text:"Comparte el enlace de la encuesta con tu equipo. Las respuestas nuevas aparecen aquí solas, en menos de 20 segundos." })));
     } else {
       var rk = rankings(st);
       body = h("div", {}, hero, summaryBlock(st, rk), opportunityBlock(st, rk), tenureBlock(st), detailBlock(st, rk), npsBlock(st), commentsBlock(st),
-        h("p", { class:"foot", text:"Esta página se actualiza sola. Las respuestas se muestran sin nombres. Si alguien vuelve a enviar la encuesta, su respuesta anterior se reemplaza y no se cuenta dos veces." }));
+        h("p", { class:"foot", text:"Esta página se actualiza sola cada 20 segundos. Las respuestas se muestran sin nombres y también quedan en tu hoja de Google Sheets." }));
     }
   }
   var note = null;
-  if (S.err) note = h("p", { class:"note", text:"No se pudieron leer las respuestas (" + S.err + "). Recarga la página para volver a intentarlo." });
+  if (S.err) note = h("p", { class:"note", text:"No se pudieron leer las respuestas (" + S.err + "). Se vuelve a intentar solo cada 20 segundos." });
 
   return h("div", { class:"wrap wide" }, head, h("div", { class:"rule" }), note, body);
 }
@@ -796,48 +834,95 @@ function renderDash(){
   window.scrollTo(0, y);
 }
 
-function showDash(){
-  S.mode = "dash";
-  renderDash();
-  window.scrollTo(0, 0);
-  if (S.subscribed) return;
-  S.subscribed = true;
-  var timer = setTimeout(function(){ if (!S.loaded) { S.slow = true; if (S.mode === "dash") renderDash(); } }, 10000);
-  ctx.db.collection("responses").onSnapshot(function(snap){
-    S.stats = computeStats(snap.docs);
-    if (!snap.metadata.fromCache) { S.loaded = true; S.slow = false; S.err = ""; clearTimeout(timer); }
+function rowsToDocs(rows){
+  return rows.map(function(r){ return { data:function(){ return r; } }; });
+}
+
+function stopPoll(){ if (S.poll) { clearInterval(S.poll); S.poll = null; } }
+
+function refresh(){
+  callApi({ action:"results", key:ctx.key }).then(function(res){
+    if (!res || !res.ok) { var e = new Error("api"); e.code = (res && res.error) || "error"; throw e; }
+    S.stats = computeStats(rowsToDocs(res.rows || []));
+    S.loaded = true; S.err = "";
     if (S.mode === "dash") renderDash();
-  }, function(err){
-    clearTimeout(timer);
-    S.err = (err && err.code) || "error";
+  }).catch(function(err){
+    if (err && err.code === "key") {
+      stopPoll(); ctx.key = "";
+      try { sessionStorage.removeItem(KEY_KEY); } catch(e){}
+      showKeyScreen("La clave no es correcta.");
+      return;
+    }
+    S.err = (err && err.code && err.code !== "api") ? err.code : "sin conexión";
     if (S.mode === "dash") renderDash();
   });
-  setInterval(function(){
-    var nodes = document.querySelectorAll("[data-at]");
-    for (var i = 0; i < nodes.length; i++) { var t = parseInt(nodes[i].getAttribute("data-at"), 10); if (t) nodes[i].textContent = ago(t); }
-  }, 30000);
+}
+
+function showDash(){
+  S.mode = "dash";
+  S.loaded = !!S.stats; S.err = "";
+  renderDash();
+  window.scrollTo(0, 0);
+  stopPoll();
+  refresh();
+  S.poll = setInterval(function(){ if (!document.hidden) refresh(); }, 20000);
+}
+
+function showKeyScreen(msg){
+  S.mode = "key";
+  var input = h("input", { class:"keyin", id:"key-input", type:"password", autocomplete:"off", "aria-label":"Clave del panel", placeholder:"Clave del panel" });
+  var err = h("p", { class:"status", role:"alert", text: msg || "" });
+  var btn = h("button", { class:"btn", type:"submit", id:"key-btn", text:"Entrar" });
+  var form = h("form", { class:"keyform" }, input, btn);
+  form.addEventListener("submit", function(e){
+    e.preventDefault();
+    var k = input.value.trim();
+    if (!k) { err.textContent = "Escribe la clave."; return; }
+    if (!API_URL) { err.textContent = "La encuesta todavía no está conectada a su hoja de resultados."; return; }
+    btn.disabled = true; btn.textContent = "Comprobando…"; err.textContent = "";
+    callApi({ action:"results", key:k }).then(function(res){
+      if (res && res.ok) {
+        ctx.key = k;
+        try { sessionStorage.setItem(KEY_KEY, k); } catch(e){}
+        S.stats = computeStats(rowsToDocs(res.rows || []));
+        showDash();
+        return;
+      }
+      btn.disabled = false; btn.textContent = "Entrar";
+      err.textContent = (res && res.error === "key") ? "La clave no es correcta." : "No se pudo abrir el panel. Revisa la configuración del script.";
+    }, function(){
+      btn.disabled = false; btn.textContent = "Entrar";
+      err.textContent = "No se pudo conectar. Revisa tu conexión.";
+    });
+  });
+  mount(h("div", { class:"wrap" },
+    h("p", { class:"kicker", text:"Panel privado · Inteligencia Colaborativa" }),
+    h("h1", { text:"Resultados del diagnóstico" }),
+    h("div", { class:"rule", style:"margin-top:18px;max-width:120px" }),
+    h("p", { class:"lede", text:"Escribe tu clave para ver los resultados." }),
+    form, err,
+    h("p", { class:"req" }, h("button", { class:"linkbtn", type:"button", id:"back-btn", onclick:function(){ S.mode = "survey"; showSurvey(); window.scrollTo(0,0); }, text:"Volver a la encuesta" }))
+  ));
+  window.scrollTo(0,0);
+  input.focus();
+}
+
+function openPanel(){
+  var k = "";
+  try { k = sessionStorage.getItem(KEY_KEY) || ""; } catch(e){}
+  if (k && API_URL) { ctx.key = k; showDash(); return; }
+  showKeyScreen("");
 }
 
 /* ---------- arranque ---------- */
 (function boot(){
-  var run = async function(){
-    var user = null, db = null;
-    try {
-      if (window.claude && window.claude.use) {
-        var r = await Promise.all([window.claude.use("user"), window.claude.use("db")]);
-        user = r[0]; db = r[1];
-      }
-    } catch(e){}
-    ctx.user = user; ctx.db = db;
-    ctx.owner = user ? await user.isOwner() : false;
-    ctx.uid = user ? await user.id() : null;
-    var already = false;
-    if (db && ctx.uid) {
-      try { already = (await db.collection("responses").doc(ctx.uid).get()).exists; } catch(e){}
-    }
-    if (already) showThanks(); else showSurvey();
-  };
-  run();
+  setInterval(function(){
+    var nodes = document.querySelectorAll("[data-at]");
+    for (var i = 0; i < nodes.length; i++) { var t = parseInt(nodes[i].getAttribute("data-at"), 10); if (t) nodes[i].textContent = ago(t); }
+  }, 30000);
+  if (location.hash === "#panel") openPanel(); else showSurvey();
 })();
 })();
 </script>
+</body>
+</html>
