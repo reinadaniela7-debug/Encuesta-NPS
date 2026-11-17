@@ -98,6 +98,21 @@ h1{font-size:clamp(28px,6.2vw,44px);font-weight:800;margin-top:8px;letter-spacin
 .opt:hover span{border-color:var(--fill)}
 .opt input:checked + span{background:var(--fill);border-color:var(--fill);color:var(--fill-ink)}
 .opt input:focus-visible + span{outline:3px solid var(--gold);outline-offset:2px}
+.sl{position:relative;max-width:var(--mw)}
+.sl-in{position:absolute;width:1px;height:1px;opacity:0;margin:0;pointer-events:none}
+.sl-hit{-webkit-tap-highlight-color:transparent;padding:8px 0 0;cursor:pointer;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.sl-rail{position:relative;height:8px;margin:14px 16px 0;border-radius:999px;background:var(--line)}
+.sl-fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:999px;background:var(--fill);transition:width .12s}
+.sl-tick{position:absolute;top:50%;width:6px;height:6px;border-radius:50%;background:var(--surface);transform:translate(-50%,-50%);opacity:.9}
+.sl-thumb{position:absolute;top:50%;left:0;width:32px;height:32px;border-radius:50%;transform:translate(-50%,-50%);
+  background:var(--surface);border:2px dashed var(--fill);opacity:.7;transition:left .12s,background .12s,opacity .12s;box-shadow:0 1px 3px rgba(10,30,70,.15)}
+.sl.has .sl-thumb{background:var(--fill);border:3px solid var(--surface);opacity:1;box-shadow:0 0 0 2px var(--fill),0 3px 8px rgba(10,30,70,.25)}
+.sl-hit:hover .sl-thumb{opacity:1}
+.sl-nums{position:relative;height:30px;margin:12px 16px 0}
+.sl-nums span{position:absolute;top:0;transform:translateX(-50%);font:700 15px var(--font-display);color:var(--muted);transition:color .12s}
+.sl-nums span.on{color:var(--fill);font-size:17px}
+.sl-in:focus-visible ~ .sl-hit .sl-thumb{outline:3px solid var(--gold);outline-offset:3px}
+.sl-ends{display:flex;justify-content:space-between;gap:12px;margin-top:2px;font-size:13px;color:var(--muted);max-width:var(--mw)}
 .q.missing{border-left:4px solid var(--bad);padding-left:14px;margin-left:-18px}
 .miss{color:var(--bad);font-size:14px;font-weight:700;margin-top:10px}
 .ta{width:100%;min-height:120px;padding:12px 14px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;resize:vertical}
@@ -389,16 +404,55 @@ function signature(){
 /* ---------- encuesta ---------- */
 function scaleQ(idx, text, max, endA, endB){
   var id = "q" + idx;
-  var w = max === 10 ? 44 : 56, gap = max === 10 ? 6 : 8;
-  var opts = [];
+  var mw = max === 10 ? 480 : 420;
+  var vars = "--mw:" + mw + "px";
+  function pct(v){ return ((v - 1) / (max - 1) * 100) + "%"; }
+  var radios = [], ticks = [], nums = [];
   for (var v = 1; v <= max; v++) {
-    opts.push(h("label", { class:"opt" }, h("input", { type:"radio", name:id, value:String(v) }), h("span", { text:String(v) })));
+    radios.push(h("input", { type:"radio", name:id, value:String(v), class:"sl-in", "aria-label":String(v) }));
+    var t = h("i", { class:"sl-tick" }); t.style.left = pct(v); ticks.push(t);
+    var n = h("span", { text:String(v) }); n.style.left = pct(v); nums.push(n);
   }
-  var vars = "--n:" + max + ";--w:" + w + "px;--gap:" + gap + "px";
+  var fill = h("div", { class:"sl-fill" });
+  var thumb = h("div", { class:"sl-thumb" });
+  var rail = h("div", { class:"sl-rail" }, fill, ticks, thumb);
+  var numsRow = h("div", { class:"sl-nums" }, nums);
+  var hit = h("div", { class:"sl-hit" }, rail, numsRow);
+  var sl = h("div", { class:"sl", style:vars }, radios, hit);
+
+  function current(){ for (var i = 0; i < radios.length; i++) if (radios[i].checked) return i + 1; return 0; }
+  function render(){
+    var c = current();
+    sl.classList.toggle("has", c > 0);
+    var p = c > 0 ? pct(c) : "0%";
+    thumb.style.left = p; fill.style.width = c > 0 ? p : "0%";
+    for (var i = 0; i < nums.length; i++) nums[i].classList.toggle("on", i + 1 === c);
+  }
+  function setVal(v){
+    if (v < 1 || v > max || current() === v) return;
+    radios[v - 1].checked = true;
+    radios[v - 1].dispatchEvent(new Event("change", { bubbles:true }));
+  }
+  function fromEvent(e){
+    var r = rail.getBoundingClientRect();
+    var ratio = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    return Math.round(ratio * (max - 1)) + 1;
+  }
+  var down = false;
+  hit.addEventListener("pointerdown", function(e){
+    down = true;
+    try { hit.setPointerCapture(e.pointerId); } catch(x){}
+    if (e.pointerType === "mouse") setVal(fromEvent(e));
+  });
+  hit.addEventListener("pointermove", function(e){ if (down) setVal(fromEvent(e)); });
+  hit.addEventListener("pointerup", function(e){ if (down) { setVal(fromEvent(e)); } down = false; });
+  hit.addEventListener("pointercancel", function(){ down = false; });
+  sl.addEventListener("change", render);
+
   return h("div", { class:"q", id:"c" + id, role:"radiogroup", "aria-labelledby":"l" + id },
     h("p", { class:"qt", id:"l" + id, text:text }),
-    h("div", { class:"scale", style:vars }, opts),
-    h("div", { class:"ends", style:vars }, h("span", { text:endA }), h("span", { text:endB })),
+    sl,
+    h("div", { class:"sl-ends", style:vars }, h("span", { text:endA }), h("span", { text:endB })),
     h("p", { class:"miss", text:"Falta responder esta pregunta.", hidden:true })
   );
 }
@@ -507,8 +561,8 @@ function surveyView(){
     h("div", { class:"rule", style:"margin-top:18px;max-width:120px" }),
     h("p", { class:"lede", text:"Esta encuesta tiene como objetivo hacer un diagnóstico de equipo para seguir trabajando hacia la Inteligencia Colaborativa." }),
     h("p", { class:"lede", text:"Tus respuestas son anónimas y fundamentales para mejorar nuestro sistema. ¡Agradecemos tu tiempo y sinceridad!" }),
-    h("p", { class:"req", text:"Todas las preguntas son obligatorias, excepto la última. En cada afirmación, 1 significa “Nunca” y 5 significa “Siempre”. Solo puedes enviar la encuesta una vez." }),
-    h("div", { class:"progress" }, h("div", { class:"row" }, progText, h("span", { text:"Marca un óvalo por pregunta" })), h("div", { class:"bar" }, barFill)),
+    h("p", { class:"req", text:"Todas las preguntas son obligatorias, excepto la última. Mueve la bolita en cada barra: 1 significa “Nunca” y 5 significa “Siempre”. Solo puedes enviar la encuesta una vez." }),
+    h("div", { class:"progress" }, h("div", { class:"row" }, progText, h("span", { text:"Mueve la bolita en cada pregunta" })), h("div", { class:"bar" }, barFill)),
     form,
     signature()
   );
