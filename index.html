@@ -308,7 +308,7 @@ var KEY_KEY = "ienn-diagnostico-clave";
 var API_URL = "https://script.google.com/macros/s/AKfycbzzbxIcQk-PEFE_DMzz9Hv7tbnjRJE3F0yiI8cSZ6XzWQ-L-1g2cx2Wz-N6DKeTmH9BiQ/exec";
 /* Código del equipo: viene en el enlace de la encuesta (?c=...). */
 var TEAM_CODE = "xpzc8vuva7"; /* código por defecto: los enlaces viejos sin ?c= también funcionan */
-try { TEAM_CODE = new URLSearchParams(location.search).get("c") || ""; } catch(e){}
+try { TEAM_CODE = new URLSearchParams(location.search).get("c") || TEAM_CODE; } catch(e){}
 var LEVELS = { lo:"Prioridad alta", mid:"Por mejorar", hi:"Fortaleza" };
 
 var ctx = { key:"" };
