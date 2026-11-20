@@ -164,6 +164,18 @@ details.more > summary{cursor:pointer;font:700 15px var(--font-display);padding:
 .srcs{margin-top:16px;font-size:13px;color:var(--muted);max-width:78ch}
 .srcs a{color:var(--ink);text-underline-offset:2px}
 .npshd{margin-top:26px}
+/* Glosario */
+.gloss{margin-top:34px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface)}
+.gloss > summary{cursor:pointer;padding:14px 18px;font:800 16px var(--font-display);list-style:none;display:flex;align-items:center;gap:10px}
+.gloss > summary::-webkit-details-marker{display:none}
+.gloss > summary::after{content:"";margin-left:auto;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .15s}
+.gloss[open] > summary::after{transform:rotate(-135deg)}
+.gloss > summary:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.gbody{padding:2px 18px 18px;display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.gbody h3{font-size:14px;font-weight:800;margin-bottom:8px}
+.gbody dl{margin:0;display:grid;gap:10px}
+.gbody dt{font:700 14px var(--font-display)}
+.gbody dd{margin:2px 0 0;font-size:14px;color:var(--muted);line-height:1.45}
 .q.missing{border-left:4px solid var(--bad);padding-left:14px;margin-left:-18px}
 .miss{color:var(--bad);font-size:14px;font-weight:700;margin-top:10px}
 .ta{width:100%;min-height:120px;padding:12px 14px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;resize:vertical}
@@ -939,6 +951,42 @@ function detailBlock(st, rk){
     tools, list);
 }
 
+function glossaryBlock(){
+  function grp(title, items){
+    var dl = h("dl", {});
+    items.forEach(function(it){ dl.append(h("div", {}, h("dt", { text:it[0] }), h("dd", { text:it[1] }))); });
+    return h("div", {}, h("h3", { text:title }), dl);
+  }
+  return h("details", { class:"gloss", id:"gloss" },
+    h("summary", { text:"¿Qué significa cada valoración?" }),
+    h("div", { class:"gbody" },
+      grp("Promedio (de 1 a 5)", [
+        ["Escala", "1 es Nunca y 5 es Siempre. Cada afirmación y cada dimensión se resume con el promedio de las respuestas."],
+        ["Prioridad alta · menos de 3,0", "En promedio la gente responde «a veces» o menos. Es lo primero que conviene atender."],
+        ["Por mejorar · de 3,0 a 3,9", "Funciona, pero con espacio claro para mejorar."],
+        ["Fortaleza · 4,0 o más", "Algo que el equipo vive con frecuencia. Vale la pena cuidarlo y celebrarlo."]]),
+      grp("Cómo se reparten las opiniones", [
+        ["Dispersión (±)", "Cuánto se separan las respuestas entre personas. Si es alta, el promedio esconde experiencias muy distintas."],
+        ["Respuestas parecidas · menos de 0,5", "Casi todos opinan lo mismo."],
+        ["Opiniones variadas · de 0,5 a 0,8", "Hay diferencias normales entre personas."],
+        ["Equipo dividido · más de 0,8", "Una parte lo vive muy bien y otra muy mal. Conviene conversarlo."],
+        ["% favorable y distribución", "Favorable es quien eligió 4 o 5. La barra separa a quienes eligieron 1 o 2, 3, y 4 o 5."]]),
+      grp("Índice de recomendación (NPS y eNPS)", [
+        ["Promotores · 9 y 10", "Recomendarían su puesto con entusiasmo."],
+        ["Pasivos · 7 y 8", "Están conformes, pero no lo recomendarían con convicción."],
+        ["Detractores · 1 a 6", "Tienen reservas que podrían contar a otros."],
+        ["Índice", "Porcentaje de promotores menos porcentaje de detractores. Va de −100 a +100; los pasivos no suman ni restan."],
+        ["Baja · 10 o menos", "Más reservas que entusiasmo; hay que entender qué las causa."],
+        ["Estable · de 10 a 30", "Más gente satisfecha que insatisfecha."],
+        ["Buena · de 30 a 50", "Una mayoría clara recomienda su puesto."],
+        ["Excelente · 50 o más", "Un nivel muy alto de entusiasmo en el equipo."]]),
+      grp("Comparación con la encuesta anterior", [
+        ["▲ Mejoró", "El promedio subió 0,3 puntos o más (en el NPS, 10 puntos o más)."],
+        ["● Se mantiene", "La diferencia es menor a eso; se considera estable."],
+        ["▼ Empeoró", "El promedio bajó 0,3 puntos o más (en el NPS, 10 puntos o más)."],
+        ["Para tener en cuenta", "Con pocas respuestas, una sola persona puede mover los números. Úsalo como guía."]])));
+}
+
 function npsPanel(c, n, nps, mx){
   var det = 0; for (var a = 0; a < 6; a++) det += c[a];
   var pas = c[6] + c[7], pro = c[8] + c[9];
@@ -1061,7 +1109,7 @@ function dashView(){
         h("p", { class:"lede", text:"Comparte el enlace de la encuesta con tu equipo. Las respuestas nuevas aparecen aquí solas, en menos de 20 segundos." })));
     } else {
       var rk = rankings(st);
-      body = h("div", {}, hero, summaryBlock(st, rk), S.compare ? compareBlock(st) : null, opportunityBlock(st, rk), tenureBlock(st), detailBlock(st, rk), npsBlock(st), benchBlock(st), commentsBlock(st),
+      body = h("div", {}, hero, glossaryBlock(), summaryBlock(st, rk), S.compare ? compareBlock(st) : null, opportunityBlock(st, rk), tenureBlock(st), detailBlock(st, rk), npsBlock(st), benchBlock(st), commentsBlock(st),
         h("p", { class:"foot", text:"Esta página se actualiza sola cada 20 segundos. Las respuestas se muestran sin nombres y también quedan en tu hoja de Google Sheets." }));
     }
   }
