@@ -979,12 +979,7 @@ function npsBlock(st){
 /* ---------- eNPS frente a otras empresas ---------- */
 var BENCH = [
   { nm:"Microsoft", note:"Comparably · 3.406 valoraciones", v:33 },
-  { nm:"Google", note:"Comparably · 5.481 valoraciones", v:31 },
-  { nm:"Tecnología (rango típico)", note:"Guías de eNPS · sin fuente de datos citada", lo:25, hi:45 },
-  { nm:"IT y servicios", note:"Mediana · 250 organizaciones", v:18 },
-  { nm:"Mediana global", note:"5.000 organizaciones", v:17 },
-  { nm:"Software", note:"Mediana · 450 organizaciones", v:16 },
-  { nm:"Spotify", note:"Comparably · 199 valoraciones", v:16 }
+  { nm:"Google", note:"Comparably · 5.481 valoraciones", v:31 }
 ];
 function enpsBand(v){ return v >= 50 ? "Excelente" : v > 30 ? "Buena" : v > 10 ? "Estable" : "Baja"; }
 function benchBlock(st){
@@ -1011,15 +1006,10 @@ function benchBlock(st){
     h("h2", { text:"Tu eNPS frente a otras empresas" }),
     h("p", { class:"sub", text:"El eNPS es el mismo índice de recomendación de arriba. Las bandas son las del informe anterior: 10 o menos baja, de 10 a 30 estable, de 30 a 50 buena, 50 o más excelente." }),
     list,
-    h("p", { class:"note", text:"No encontré eNPS publicados específicos de áreas de innovación o I+D. Las referencias más cercanas son empresas y sectores de tecnología. Úsalas como orientación, no como meta: miden poblaciones y métodos distintos, y en un equipo pequeño una sola persona mueve el NPS unos 4 o 5 puntos." }),
-    h("p", { class:"srcs" }, "Fuentes, consultadas el 20 de noviembre de 2026: empresas, valoraciones públicas de empleados en ",
-      h("a", { href:"https://www.comparably.com/companies/google/enps", target:"_blank", rel:"noopener", text:"Comparably (Google)" }), ", ",
-      h("a", { href:"https://www.comparably.com/companies/microsoft/enps", target:"_blank", rel:"noopener", text:"Microsoft" }), " y ",
-      h("a", { href:"https://www.comparably.com/companies/spotify/enps", target:"_blank", rel:"noopener", text:"Spotify" }),
-      "; medianas por sector, ",
-      h("a", { href:"https://feedbackpulse.com/resources/enps-benchmarks", target:"_blank", rel:"noopener", text:"FeedbackPulse, enero de 2026" }),
-      "; rango de tecnología, ",
-      h("a", { href:"https://matterapp.com/blog/enps-score", target:"_blank", rel:"noopener", text:"guía de Matter" }), "."));
+    h("p", { class:"note", text:"No encontré eNPS publicados específicos de áreas de innovación o I+D. Estas son empresas de tecnología, la referencia más cercana. Úsalas como orientación, no como meta: miden poblaciones y métodos distintos, y en un equipo pequeño una sola persona mueve el NPS unos 4 o 5 puntos." }),
+    h("p", { class:"srcs" }, "Fuentes, consultadas el 20 de noviembre de 2026: valoraciones públicas de empleados en ",
+      h("a", { href:"https://www.comparably.com/companies/google/enps", target:"_blank", rel:"noopener", text:"Comparably (Google)" }), " y ",
+      h("a", { href:"https://www.comparably.com/companies/microsoft/enps", target:"_blank", rel:"noopener", text:"Comparably (Microsoft)" }), "."));
 }
 
 function commentsBlock(st){
