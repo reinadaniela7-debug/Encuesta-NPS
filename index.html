@@ -144,6 +144,26 @@ details.more{margin-top:14px}
 details.more > summary{cursor:pointer;font:700 15px var(--font-display);padding:6px 0}
 .cmpnps{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);font-size:15px;max-width:70ch}
 .cmpnps .dl{margin-left:6px}
+/* eNPS frente a otras empresas */
+.bench{margin-top:20px;max-width:860px}
+.brow{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr) 64px;gap:4px 14px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.brow:first-child{border-top:0}
+.brow .nm{font-size:14px;font-weight:600;min-width:0}
+.brow .nm small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.brow .v{white-space:nowrap;font:800 16px var(--font-display);text-align:right;font-variant-numeric:tabular-nums}
+.btrack{position:relative;height:16px;background:var(--soft);border-radius:2px;overflow:hidden}
+.btrack .zero{position:absolute;top:0;bottom:0;width:2px;background:var(--muted);opacity:.7}
+.btrack .bar{position:absolute;top:3px;bottom:3px;background:var(--muted);opacity:.55;border-radius:1px}
+.btrack .bar.range{opacity:.6;border:1.5px solid var(--muted);background:transparent}
+.brow.me .nm,.brow.me .v{color:var(--fill)}
+.brow.me .btrack .bar{background:var(--fill);opacity:1}
+.brow.me.old .btrack .bar{opacity:.45}
+.bands{display:flex;margin-top:14px;margin-left:244px;margin-right:78px;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.bands span{display:block;text-align:center;border-top:2px solid var(--line);padding-top:4px;overflow:hidden;white-space:nowrap}
+@media (max-width:620px){.brow{grid-template-columns:minmax(0,1fr) 78px}.brow .btrack{grid-column:1 / -1;order:3}.bands{margin-left:0;margin-right:0}}
+.srcs{margin-top:16px;font-size:13px;color:var(--muted);max-width:78ch}
+.srcs a{color:var(--ink);text-underline-offset:2px}
+.npshd{margin-top:26px}
 .q.missing{border-left:4px solid var(--bad);padding-left:14px;margin-left:-18px}
 .miss{color:var(--bad);font-size:14px;font-weight:700;margin-top:10px}
 .ta{width:100%;min-height:120px;padding:12px 14px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;resize:vertical}
@@ -359,7 +379,7 @@ try { TEAM_CODE = new URLSearchParams(location.search).get("c") || TEAM_CODE; } 
 var LEVELS = { lo:"Prioridad alta", mid:"Por mejorar", hi:"Fortaleza" };
 
 var ctx = { key:"" };
-var S = { mode:"loading", stats:null, order:"survey", loaded:false, err:"", poll:null, compare:true };
+var S = { mode:"loading", stats:null, order:"survey", loaded:false, err:"", poll:null, compare:false };
 /* ---------- Encuesta anterior (datos del informe en PDF) ---------- */
 var PREV = {
   label:"Encuesta anterior", n:22,
@@ -377,7 +397,7 @@ PREV.nps = Math.round((PREV.pro - PREV.det) / PREV.n * 100);
 var CMP_KEY = "ienn-comparar";
 var STABLE = 0.3;      /* menos de esto se considera que "se mantiene" */
 var STABLE_NPS = 10;   /* puntos de NPS */
-function getCompare(){ try { var v = localStorage.getItem(CMP_KEY); return v === null ? true : v === "1"; } catch(e){ return true; } }
+function getCompare(){ try { var v = localStorage.getItem(CMP_KEY); return v === "1"; } catch(e){ return false; } }
 function setCompare(on){ S.compare = on; try { localStorage.setItem(CMP_KEY, on ? "1" : "0"); } catch(e){} }
 S.compare = getCompare();
 function r1(d){ return Math.round(d * 10) / 10; }
@@ -919,29 +939,87 @@ function detailBlock(st, rk){
     tools, list);
 }
 
-function npsBlock(st){
-  var n = st.n;
-  var c = st.dist[25];
-  var max = Math.max.apply(null, c.concat([1]));
+function npsPanel(c, n, nps, mx){
+  var det = 0; for (var a = 0; a < 6; a++) det += c[a];
+  var pas = c[6] + c[7], pro = c[8] + c[9];
+  var sign = nps > 0 ? "+" : "";
   var hist = h("div", { class:"hist", role:"img", "aria-label":"Respuestas a la pregunta de recomendación, del 1 al 10" });
   c.forEach(function(q, j){
     var cls = j < 6 ? "k-det" : j < 8 ? "k-pas" : "k-pro";
-    hist.append(h("div", { class:"hcol" }, h("span", { text: q ? String(q) : "" }), h("u", { class:cls, style:"height:" + (q / max * 70) + "px" }), h("b", { text:String(j+1) })));
+    hist.append(h("div", { class:"hcol" }, h("span", { text: q ? String(q) : "" }), h("u", { class:cls, style:"height:" + (q / mx * 70) + "px" }), h("b", { text:String(j+1) })));
   });
-  var sign = st.nps > 0 ? "+" : "";
-  return h("section", { class:"block" },
+  return h("div", { class:"npsgrid" },
+    h("div", { class:"npsnum" }, h("b", { text: sign + nps }), h("span", { text:"índice de recomendación (NPS)" })),
+    h("div", {},
+      hist,
+      h("div", { class:"split", role:"img", "aria-label":det + " detractores, " + pas + " pasivos, " + pro + " promotores" },
+        h("i", { class:"k-det", style:"flex:" + det }), h("i", { class:"k-pas", style:"flex:" + pas }), h("i", { class:"k-pro", style:"flex:" + pro })),
+      h("div", { class:"splitlbl" },
+        h("span", {}, h("i", { class:"k-det" }), "Detractores " + det + " (" + pct(det / n) + ")"),
+        h("span", {}, h("i", { class:"k-pas" }), "Pasivos " + pas + " (" + pct(pas / n) + ")"),
+        h("span", {}, h("i", { class:"k-pro" }), "Promotores " + pro + " (" + pct(pro / n) + ")"))));
+}
+
+function npsBlock(st){
+  var c = st.dist[25];
+  var mx = Math.max.apply(null, c.concat([1]));
+  if (S.compare) mx = Math.max.apply(null, PREV.npsDist.concat([mx]));
+  var box = h("section", { class:"block", id:"nps-block" },
     h("h2", { text:"¿Recomendarían su puesto de trabajo?" }),
-    h("p", { class:"sub", text:"Escala de 1 a 10. Promotores: 9 y 10. Pasivos: 7 y 8. Detractores: 1 a 6. El índice (NPS) es el % de promotores menos el % de detractores." }),
-    h("div", { class:"npsgrid" },
-      h("div", { class:"npsnum" }, h("b", { text: sign + st.nps }), h("span", { text:"índice de recomendación (NPS)" })),
-      h("div", {},
-        h("div", { class:"split", role:"img", "aria-label":st.det + " detractores, " + st.pas + " pasivos, " + st.pro + " promotores" },
-          h("i", { class:"k-det", style:"flex:" + st.det }), h("i", { class:"k-pas", style:"flex:" + st.pas }), h("i", { class:"k-pro", style:"flex:" + st.pro })),
-        h("div", { class:"splitlbl" },
-          h("span", {}, h("i", { class:"k-det" }), "Detractores " + st.det + " (" + pct(st.det / n) + ")"),
-          h("span", {}, h("i", { class:"k-pas" }), "Pasivos " + st.pas + " (" + pct(st.pas / n) + ")"),
-          h("span", {}, h("i", { class:"k-pro" }), "Promotores " + st.pro + " (" + pct(st.pro / n) + ")")),
-        hist)));
+    h("p", { class:"sub", text:"Escala de 1 a 10. Promotores: 9 y 10. Pasivos: 7 y 8. Detractores: 1 a 6. El índice (NPS) es el % de promotores menos el % de detractores." }));
+  if (S.compare) {
+    box.append(h("h3", { class:"mt npshd", text:"Ahora · " + st.n + " " + plural(st.n, "persona", "personas") }), npsPanel(c, st.n, st.nps, mx),
+      h("h3", { class:"mt npshd", text:"Encuesta anterior · " + PREV.n + " personas" }), npsPanel(PREV.npsDist, PREV.n, PREV.nps, mx));
+  } else {
+    box.append(npsPanel(c, st.n, st.nps, mx));
+  }
+  return box;
+}
+
+/* ---------- eNPS frente a otras empresas ---------- */
+var BENCH = [
+  { nm:"Microsoft", note:"Comparably · 3.406 valoraciones", v:33 },
+  { nm:"Google", note:"Comparably · 5.481 valoraciones", v:31 },
+  { nm:"Tecnología (rango típico)", note:"Guías de eNPS · sin fuente de datos citada", lo:25, hi:45 },
+  { nm:"IT y servicios", note:"Mediana · 250 organizaciones", v:18 },
+  { nm:"Mediana global", note:"5.000 organizaciones", v:17 },
+  { nm:"Software", note:"Mediana · 450 organizaciones", v:16 },
+  { nm:"Spotify", note:"Comparably · 199 valoraciones", v:16 }
+];
+function enpsBand(v){ return v >= 50 ? "Excelente" : v > 30 ? "Buena" : v > 10 ? "Estable" : "Baja"; }
+function benchBlock(st){
+  var MIN = -40, MAX = 70, span = MAX - MIN;
+  function pos(v){ return ((v - MIN) / span * 100); }
+  function row(o){
+    var tr = h("div", { class:"btrack", role:"img", "aria-label": o.nm + ": " + (o.lo !== undefined ? "de " + o.lo + " a " + o.hi : (o.v > 0 ? "+" : "") + o.v) }, h("i", { class:"zero", style:"left:" + pos(0) + "%" }));
+    var bar = h("i", { class:"bar" + (o.lo !== undefined ? " range" : "") });
+    if (o.lo !== undefined) { bar.style.left = pos(o.lo) + "%"; bar.style.width = (pos(o.hi) - pos(o.lo)) + "%"; }
+    else { bar.style.left = pos(Math.min(0, o.v)) + "%"; bar.style.width = (Math.abs(o.v) / span * 100) + "%"; }
+    tr.append(bar);
+    return h("div", { class:"brow" + (o.me ? " me" : "") + (o.old ? " old" : "") },
+      h("div", { class:"nm" }, o.nm, o.note ? h("small", { text:o.note }) : null),
+      tr,
+      h("span", { class:"v", text: o.lo !== undefined ? o.lo + " a " + o.hi : (o.v > 0 ? "+" : "") + o.v }));
+  }
+  var rows = [{ nm:"Tu equipo · ahora", note:"Banda: " + enpsBand(st.nps) + " · " + st.n + " " + plural(st.n, "persona", "personas"), v:st.nps, me:true }];
+  if (S.compare) rows.push({ nm:"Tu equipo · encuesta anterior", note:"Banda: " + enpsBand(PREV.nps) + " · " + PREV.n + " personas", v:PREV.nps, me:true, old:true });
+  var all = rows.concat(BENCH);
+  var list = h("div", { class:"bench" }, all.map(row),
+    h("div", { class:"bands", "aria-hidden":"true" },
+      h("span", { style:"flex:" + (10 - MIN), text:"Baja" }), h("span", { style:"flex:20", text:"Estable" }), h("span", { style:"flex:20", text:"Buena" }), h("span", { style:"flex:" + (MAX - 50), text:"Excelente" })));
+  return h("section", { class:"block", id:"bench-block" },
+    h("h2", { text:"Tu eNPS frente a otras empresas" }),
+    h("p", { class:"sub", text:"El eNPS es el mismo índice de recomendación de arriba. Las bandas son las del informe anterior: 10 o menos baja, de 10 a 30 estable, de 30 a 50 buena, 50 o más excelente." }),
+    list,
+    h("p", { class:"note", text:"No encontré eNPS publicados específicos de áreas de innovación o I+D. Las referencias más cercanas son empresas y sectores de tecnología. Úsalas como orientación, no como meta: miden poblaciones y métodos distintos, y en un equipo pequeño una sola persona mueve el NPS unos 4 o 5 puntos." }),
+    h("p", { class:"srcs" }, "Fuentes, consultadas el 20 de noviembre de 2026: empresas, valoraciones públicas de empleados en ",
+      h("a", { href:"https://www.comparably.com/companies/google/enps", target:"_blank", rel:"noopener", text:"Comparably (Google)" }), ", ",
+      h("a", { href:"https://www.comparably.com/companies/microsoft/enps", target:"_blank", rel:"noopener", text:"Microsoft" }), " y ",
+      h("a", { href:"https://www.comparably.com/companies/spotify/enps", target:"_blank", rel:"noopener", text:"Spotify" }),
+      "; medianas por sector, ",
+      h("a", { href:"https://feedbackpulse.com/resources/enps-benchmarks", target:"_blank", rel:"noopener", text:"FeedbackPulse, enero de 2026" }),
+      "; rango de tecnología, ",
+      h("a", { href:"https://matterapp.com/blog/enps-score", target:"_blank", rel:"noopener", text:"guía de Matter" }), "."));
 }
 
 function commentsBlock(st){
@@ -993,7 +1071,7 @@ function dashView(){
         h("p", { class:"lede", text:"Comparte el enlace de la encuesta con tu equipo. Las respuestas nuevas aparecen aquí solas, en menos de 20 segundos." })));
     } else {
       var rk = rankings(st);
-      body = h("div", {}, hero, summaryBlock(st, rk), S.compare ? compareBlock(st) : null, opportunityBlock(st, rk), tenureBlock(st), detailBlock(st, rk), npsBlock(st), commentsBlock(st),
+      body = h("div", {}, hero, summaryBlock(st, rk), S.compare ? compareBlock(st) : null, opportunityBlock(st, rk), tenureBlock(st), detailBlock(st, rk), npsBlock(st), benchBlock(st), commentsBlock(st),
         h("p", { class:"foot", text:"Esta página se actualiza sola cada 20 segundos. Las respuestas se muestran sin nombres y también quedan en tu hoja de Google Sheets." }));
     }
   }
