@@ -1072,6 +1072,146 @@ function commentsBlock(st){
   return box;
 }
 
+/* ---------- descargar presentación (.pptx) ---------- */
+var PPTX_SRC = "https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js";
+function loadPptx(){
+  if (window.PptxGenJS) return Promise.resolve();
+  return new Promise(function(ok, no){
+    var s = document.createElement("script");
+    s.src = PPTX_SRC; s.onload = ok; s.onerror = function(){ no(new Error("script")); };
+    document.head.appendChild(s);
+  });
+}
+function buildDeck(st){
+  var C = { navy:"14224F", blue:"1F4FB5", mid:"6B9DE3", soft:"E4EEFB", bg:"F3F7FC", ink:"13213A", muted:"566379", gold:"C99A2E", bad:"B3261E", good:"1F7A4D", line:"D3DEEE" };
+  var F = "Calibri";
+  var p = new window.PptxGenJS();
+  p.layout = "LAYOUT_WIDE"; /* 13.33 x 7.5 */
+  p.title = "Diagnóstico de equipo IENN";
+  var n = st.n, rk = rankings(st);
+  var fecha = new Date().toLocaleDateString("es", { day:"numeric", month:"long", year:"numeric" });
+  function sg(d, dec){ var a = Math.abs(d); var t = dec === 0 ? String(Math.round(a)) : f1(a); return (d > 0 ? "+" : d < 0 ? "−" : "") + t; }
+  function cut(t, m){ return t.length > m ? t.slice(0, m - 1).replace(/\s+\S*$/, "") + "…" : t; }
+  function slide(title, sub){
+    var s = p.addSlide(); s.background = { color:C.bg };
+    s.addShape(p.ShapeType.rect, { x:0, y:0, w:0.22, h:7.5, fill:{ color:C.blue }, line:{ color:C.blue, width:0 } });
+    s.addText(title, { x:0.7, y:0.4, w:11.9, h:0.7, fontFace:F, fontSize:30, bold:true, color:C.navy, margin:0 });
+    if (sub) s.addText(sub, { x:0.7, y:1.1, w:11.9, h:0.4, fontFace:F, fontSize:15, color:C.muted, margin:0 });
+    s.addText("Diagnóstico de equipo IENN · " + n + " respuestas de 27 personas · " + fecha, { x:0.7, y:7.0, w:11.9, h:0.3, fontFace:F, fontSize:10, color:C.muted, margin:0 });
+    return s;
+  }
+  /* 1. portada */
+  var s = p.addSlide(); s.background = { color:C.navy };
+  s.addText("INTELIGENCIA COLABORATIVA", { x:0.8, y:2.0, w:11.7, h:0.4, fontFace:F, fontSize:16, bold:true, color:"A7C7F2", charSpacing:4, margin:0 });
+  s.addText("Diagnóstico de equipo IENN", { x:0.8, y:2.5, w:11.7, h:1.1, fontFace:F, fontSize:48, bold:true, color:"FFFFFF", margin:0 });
+  s.addText("Resultados de la encuesta · " + fecha, { x:0.8, y:3.7, w:11.7, h:0.5, fontFace:F, fontSize:20, color:"D6E6FA", margin:0 });
+  s.addShape(p.ShapeType.rect, { x:0.8, y:4.5, w:1.4, h:0.06, fill:{ color:C.gold }, line:{ color:C.gold, width:0 } });
+  s.addText(n + " respuestas anónimas · equipo de 27 personas", { x:0.8, y:4.75, w:11.7, h:0.4, fontFace:F, fontSize:16, color:"D6E6FA", margin:0 });
+
+  /* 2. resumen */
+  s = slide("Resumen general", "Comparado con la encuesta anterior (" + PREV.n + " personas)");
+  var cards = [
+    { k:"Promedio general", v:f1(st.overall), u:"de 5", d:st.overall - PREV.overall, prev:"antes " + f1(PREV.overall), thr:STABLE, dec:1 },
+    { k:"NPS (recomendación)", v:(st.nps > 0 ? "+" : "") + st.nps, u:"de −100 a +100", d:st.nps - PREV.nps, prev:"antes " + (PREV.nps > 0 ? "+" : "") + PREV.nps, thr:STABLE_NPS, dec:0 },
+    { k:"Respuestas", v:String(n), u:"de 27 personas (" + Math.round(n / 27 * 100) + "%)", d:null, prev:"antes " + PREV.n }
+  ];
+  cards.forEach(function(c, i){
+    var x = 0.7 + i * 4.1;
+    s.addShape(p.ShapeType.roundRect, { x:x, y:1.9, w:3.8, h:3.3, fill:{ color:"FFFFFF" }, line:{ color:C.line, width:1 }, rectRadius:0.08 });
+    s.addText(c.k, { x:x + 0.3, y:2.1, w:3.2, h:0.4, fontFace:F, fontSize:15, bold:true, color:C.muted, margin:0 });
+    s.addText(c.v, { x:x + 0.3, y:2.6, w:3.2, h:1.2, fontFace:F, fontSize:60, bold:true, color:C.blue, margin:0 });
+    s.addText(c.u, { x:x + 0.3, y:3.8, w:3.2, h:0.4, fontFace:F, fontSize:13, color:C.muted, margin:0 });
+    var t = c.d === null ? "" : trendOf(c.d, c.thr) === "up" ? "▲ " + sg(c.d, c.dec) + " · mejoró" : trendOf(c.d, c.thr) === "down" ? "▼ " + sg(c.d, c.dec) + " · empeoró" : "● " + sg(c.d, c.dec) + " · se mantiene";
+    var col = c.d === null ? C.muted : trendOf(c.d, c.thr) === "up" ? C.good : trendOf(c.d, c.thr) === "down" ? C.bad : C.muted;
+    if (t) s.addText(t, { x:x + 0.3, y:4.3, w:3.2, h:0.4, fontFace:F, fontSize:16, bold:true, color:col, margin:0 });
+    s.addText(c.prev, { x:x + 0.3, y:4.7, w:3.2, h:0.35, fontFace:F, fontSize:13, color:C.muted, margin:0 });
+  });
+  s.addText("Se considera \"se mantiene\" una diferencia menor a " + f1(STABLE) + " puntos en el promedio o a " + STABLE_NPS + " en el NPS. Con equipos pequeños, cambios chicos pueden ser ruido.", { x:0.7, y:5.6, w:11.9, h:0.7, fontFace:F, fontSize:13, color:C.muted, margin:0 });
+
+  /* 3. dimensiones */
+  s = slide("Promedio por dimensión", "Escala de 1 a 5 · actual frente a la encuesta anterior");
+  s.addChart(p.charts.BAR, [
+    { name:"Encuesta anterior", labels:DIMS, values:PREV.dimAvg.map(r1) },
+    { name:"Esta encuesta", labels:DIMS, values:st.dimAvg.map(r1) }
+  ], { x:0.7, y:1.6, w:11.9, h:5.2, barDir:"col", barGrouping:"clustered", chartColors:[C.mid, C.blue], valAxisMinVal:1, valAxisMaxVal:5, valAxisMajorUnit:1,
+       showValue:true, dataLabelFontSize:12, dataLabelFormatCode:"0.0", catAxisLabelFontSize:13, valAxisLabelFontSize:11, showLegend:true, legendPos:"b", legendFontSize:13, valGridLine:{ color:C.line, size:0.5 } });
+
+  /* 4. mejorar / mejores */
+  s = slide("Qué mejorar y qué cuidar", "Las afirmaciones con menor y mayor promedio en esta encuesta");
+  function listCol(x, head, color, idxs){
+    s.addText(head, { x:x, y:1.7, w:5.8, h:0.4, fontFace:F, fontSize:18, bold:true, color:color, margin:0 });
+    idxs.forEach(function(q, i){
+      var y = 2.25 + i * 0.93;
+      s.addText(f1(st.avg[q]), { x:x, y:y, w:0.9, h:0.8, fontFace:F, fontSize:28, bold:true, color:color, margin:0, valign:"middle" });
+      s.addText([{ text:cut(LIKERT[q], 105), options:{ fontSize:13, color:C.ink, breakLine:true } }, { text:DIMS[Math.floor(q / 5)], options:{ fontSize:11, color:C.muted } }],
+        { x:x + 1.0, y:y, w:4.8, h:0.85, fontFace:F, margin:0, valign:"middle" });
+    });
+  }
+  listCol(0.7, "Para mejorar", C.bad, rk.qOrder.slice(0, 5));
+  listCol(6.9, "Fortalezas", C.blue, rk.qOrder.slice().reverse().slice(0, 5));
+
+  /* 5. cambios */
+  s = slide("Qué cambió frente a la encuesta anterior", "Diferencia de promedio por afirmación (1 a 5)");
+  var diffs = []; for (var q = 0; q < 25; q++) diffs.push({ q:q, d:st.avg[q] - PREV.avg[q] });
+  diffs.sort(function(a, b){ return b.d - a.d; });
+  function chCol(x, head, color, list){
+    s.addText(head, { x:x, y:1.7, w:5.8, h:0.4, fontFace:F, fontSize:18, bold:true, color:color, margin:0 });
+    list.forEach(function(o, i){
+      var y = 2.25 + i * 0.93;
+      s.addText(sg(o.d, 1), { x:x, y:y, w:1.0, h:0.8, fontFace:F, fontSize:26, bold:true, color:color, margin:0, valign:"middle" });
+      s.addText([{ text:cut(LIKERT[o.q], 95), options:{ fontSize:13, color:C.ink, breakLine:true } }, { text:f1(PREV.avg[o.q]) + " → " + f1(st.avg[o.q]) + " · " + DIMS[Math.floor(o.q / 5)], options:{ fontSize:11, color:C.muted } }],
+        { x:x + 1.1, y:y, w:4.7, h:0.85, fontFace:F, margin:0, valign:"middle" });
+    });
+  }
+  chCol(0.7, "Mejoraron más", C.good, diffs.slice(0, 5));
+  chCol(6.9, "Menos avance o retroceso", C.bad, diffs.slice().reverse().slice(0, 5));
+
+  /* 6. NPS */
+  s = slide("Recomendación (eNPS)", "¿Qué tan probable es que recomiendes a este equipo? De 1 a 10");
+  var cur = st.dist[25], tot = n, pt = PREV.n;
+  s.addChart(p.charts.BAR, [
+    { name:"Encuesta anterior", labels:["1","2","3","4","5","6","7","8","9","10"], values:PREV.npsDist },
+    { name:"Esta encuesta", labels:["1","2","3","4","5","6","7","8","9","10"], values:cur }
+  ], { x:0.7, y:1.7, w:7.4, h:4.9, barDir:"col", barGrouping:"clustered", chartColors:[C.mid, C.blue], valAxisMinVal:0, valAxisMajorUnit:1, valAxisLabelFontSize:11, catAxisLabelFontSize:12,
+       showLegend:true, legendPos:"b", legendFontSize:12, valGridLine:{ color:C.line, size:0.5 }, showValue:true, dataLabelFontSize:10 });
+  function pct(a, b){ return Math.round(a / b * 100) + "%"; }
+  var rows = [
+    [{ text:"", options:{ fill:{ color:C.soft } } }, { text:"Anterior", options:{ bold:true, fill:{ color:C.soft } } }, { text:"Actual", options:{ bold:true, fill:{ color:C.soft } } }],
+    ["Promotores (9–10)", pct(PREV.pro, pt), pct(st.pro, tot)],
+    ["Neutros (7–8)", pct(PREV.pas, pt), pct(st.pas, tot)],
+    ["Detractores (1–6)", pct(PREV.det, pt), pct(st.det, tot)],
+    [{ text:"eNPS", options:{ bold:true } }, { text:(PREV.nps > 0 ? "+" : "") + PREV.nps, options:{ bold:true } }, { text:(st.nps > 0 ? "+" : "") + st.nps, options:{ bold:true } }]
+  ];
+  s.addTable(rows, { x:8.5, y:1.9, w:4.1, colW:[2.0, 1.05, 1.05], fontFace:F, fontSize:14, color:C.ink, border:{ type:"solid", color:C.line, pt:0.75 }, rowH:0.5, fill:{ color:"FFFFFF" }, align:"center" });
+  s.addText("Referencia (Comparably, valoraciones públicas): " + BENCH.map(function(b){ return b.nm + " +" + b.v; }).join(" · ") + ". No son encuestas internas de equipos de innovación, así que sirven solo como orientación.", { x:8.5, y:4.7, w:4.1, h:1.6, fontFace:F, fontSize:12, color:C.muted, margin:0, valign:"top" });
+
+  /* 7. comentarios */
+  if (st.texts.length) {
+    s = slide("Comentarios del equipo", "Pregunta abierta, sin nombres");
+    var list = st.texts.slice(0, 5);
+    var runs = [];
+    list.forEach(function(r, i){ runs.push({ text:"“" + cut(r.t, 260) + "”", options:{ fontSize:15, color:C.ink, breakLine:true, paraSpaceAfter:14 } }); });
+    s.addText(runs, { x:0.7, y:1.7, w:11.9, h:5.0, fontFace:F, margin:0, valign:"top" });
+  }
+  return p;
+}
+function downloadDeck(btn){
+  var st = S.stats;
+  if (!st || !st.n) return;
+  var old = btn.textContent;
+  btn.disabled = true; btn.textContent = "Preparando…";
+  loadPptx().then(function(){
+    var d = new Date(), pad = function(x){ return (x < 10 ? "0" : "") + x; };
+    var name = "Diagnostico-equipo-IENN-" + d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+    return buildDeck(st).writeFile({ fileName:name + ".pptx" });
+  }).catch(function(){
+    btn.textContent = "No se pudo generar";
+    setTimeout(function(){ btn.textContent = old; btn.disabled = false; }, 3000);
+  }).then(function(){
+    if (btn.textContent === "Preparando…") { btn.textContent = old; btn.disabled = false; }
+  });
+}
+
 function dashView(){
   var st = S.stats;
   var state, cls = "live";
@@ -1085,6 +1225,7 @@ function dashView(){
       h("span", { class:"pill" }, svg(ICON_LOCK), "Protegido con tu clave"),
       h("button", { type:"button", id:"cmp-toggle", class:"sw-toggle", role:"switch", "aria-checked": S.compare ? "true" : "false", onclick:function(){ setCompare(!S.compare); renderDash(); } },
         h("span", { class:"trk", "aria-hidden":"true" }), "Comparar con la encuesta anterior"),
+      h("button", { class:"btn ghost", type:"button", id:"pptx-btn", disabled: (st && st.n) ? null : "disabled", onclick:function(e){ downloadDeck(e.currentTarget); }, text:"Descargar presentación" }),
       h("span", { class:cls, text:state }),
       h("button", { class:"btn ghost", type:"button", id:"exit-btn", onclick:function(){ stopPoll(); S.mode = "survey"; mount(surveyView()); window.scrollTo(0,0); }, text:"Salir del panel" })));
 
