@@ -1073,13 +1073,24 @@ function commentsBlock(st){
 }
 
 /* ---------- descargar presentación (.pptx) ---------- */
-var PPTX_SRC = "https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js";
+var PPTX_SRCS = [
+  "https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js",
+  "https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundle.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"
+];
 function loadPptx(){
   if (window.PptxGenJS) return Promise.resolve();
+  var i = 0;
   return new Promise(function(ok, no){
-    var s = document.createElement("script");
-    s.src = PPTX_SRC; s.onload = ok; s.onerror = function(){ no(new Error("script")); };
-    document.head.appendChild(s);
+    function next(){
+      if (i >= PPTX_SRCS.length) { no(new Error("script")); return; }
+      var s = document.createElement("script");
+      s.src = PPTX_SRCS[i++];
+      s.onload = function(){ if (window.PptxGenJS) ok(); else { s.remove(); next(); } };
+      s.onerror = function(){ s.remove(); next(); };
+      document.head.appendChild(s);
+    }
+    next();
   });
 }
 function buildDeck(st){
@@ -1090,7 +1101,7 @@ function buildDeck(st){
   p.title = "Diagnóstico de equipo IENN";
   var n = st.n, rk = rankings(st);
   var fecha = new Date().toLocaleDateString("es", { day:"numeric", month:"long", year:"numeric" });
-  function sg(d, dec){ var a = Math.abs(d); var t = dec === 0 ? String(Math.round(a)) : f1(a); return (d > 0 ? "+" : d < 0 ? "−" : "") + t; }
+  function sg(d, dec){ var a = Math.abs(d); var t = dec === 0 ? String(Math.round(a)) : f1(a); var z = (dec === 0 ? Math.round(a) === 0 : Math.round(a * 10) === 0); return (z ? "" : d > 0 ? "+" : "−") + t; }
   function cut(t, m){ return t.length > m ? t.slice(0, m - 1).replace(/\s+\S*$/, "") + "…" : t; }
   function slide(title, sub){
     var s = p.addSlide(); s.background = { color:C.bg };
@@ -1204,8 +1215,9 @@ function downloadDeck(btn){
     var d = new Date(), pad = function(x){ return (x < 10 ? "0" : "") + x; };
     var name = "Diagnostico-equipo-IENN-" + d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
     return buildDeck(st).writeFile({ fileName:name + ".pptx" });
-  }).catch(function(){
-    btn.textContent = "No se pudo generar";
+  }).catch(function(err){
+    try { console.error("pptx", err); } catch(e){}
+    btn.textContent = (err && err.message === "script") ? "Sin conexión con la herramienta" : "No se pudo generar";
     setTimeout(function(){ btn.textContent = old; btn.disabled = false; }, 3000);
   }).then(function(){
     if (btn.textContent === "Preparando…") { btn.textContent = old; btn.disabled = false; }
